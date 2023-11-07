@@ -8,7 +8,6 @@ import {
   UNDO_COMMAND,
 } from "lexical";
 import { $setBlocksType } from "@lexical/selection";
-import { ToolbarItem } from "./ToolbarPlugin";
 import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
 import { $createLinkNode } from "@lexical/link";
 import { useCallback, useState } from "react";
@@ -40,9 +39,14 @@ export const FormatText = () => {
   return (
     <>
       {formattingTextOptions.map((tag, i) => (
-        <ToolbarItem key={i} onClick={() => formattingTextOnClick(tag)}>
+        <button
+          className={"toolbar__item"}
+          key={i}
+          onClick={() => formattingTextOnClick(tag)}
+          // $isTypeOpen={isTypeOpen}
+        >
           {tag}
-        </ToolbarItem>
+        </button>
       ))}
     </>
   );
@@ -54,7 +58,11 @@ export const Monocode = (): JSX.Element => {
   const codeOnClick = (): void => {
     editor.dispatchCommand(FORMAT_TEXT_COMMAND, "code");
   };
-  return <ToolbarItem onClick={codeOnClick}>mono</ToolbarItem>;
+  return (
+    <button className={"toolbar__item"} onClick={codeOnClick}>
+      mono
+    </button>
+  );
 };
 
 export const InsertLink = (): JSX.Element => {
@@ -98,7 +106,9 @@ export const InsertLink = (): JSX.Element => {
 
   return (
     <>
-      <ToolbarItem onClick={linkOnClick}>link</ToolbarItem>
+      <button className={"toolbar__item"} onClick={linkOnClick}>
+        link
+      </button>
 
       {isSeen && (
         <div>
@@ -128,7 +138,11 @@ export const HR = () => {
   const hrOnClick = (): void => {
     editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined);
   };
-  return <ToolbarItem onClick={hrOnClick}>HR</ToolbarItem>;
+  return (
+    <button className={"toolbar__item"} onClick={hrOnClick}>
+      HR
+    </button>
+  );
 };
 
 export const UnDoReDo = () => {
@@ -147,12 +161,20 @@ export const UnDoReDo = () => {
 
   return (
     <>
-      <ToolbarItem id={"undo"} onClick={(e) => undoRedo(e)}>
+      <button
+        className={"toolbar__item"}
+        id={"undo"}
+        onClick={(e) => undoRedo(e)}
+      >
         {"<<"}
-      </ToolbarItem>
-      <ToolbarItem id={"redo"} onClick={(e) => undoRedo(e)}>
+      </button>
+      <button
+        className={"toolbar__item"}
+        id={"redo"}
+        onClick={(e) => undoRedo(e)}
+      >
         {">>"}
-      </ToolbarItem>
+      </button>
     </>
   );
 };
@@ -174,9 +196,13 @@ export const Heading = (): JSX.Element => {
   return (
     <>
       {headingTags.map((tag, i) => (
-        <ToolbarItem key={i} onClick={() => headingOnClick(tag)}>
+        <button
+          className={"toolbar__item"}
+          key={i}
+          onClick={() => headingOnClick(tag)}
+        >
           {tag}
-        </ToolbarItem>
+        </button>
       ))}
     </>
   );
@@ -205,7 +231,11 @@ export const CodeBlock = () => {
     });
   };
 
-  return <ToolbarItem onClick={codeBlockOnClick}>CodeBlock</ToolbarItem>;
+  return (
+    <button className={"toolbar__item"} onClick={codeBlockOnClick}>
+      CodeBlock
+    </button>
+  );
 };
 
 export const NormalParagraph = () => {
@@ -220,7 +250,11 @@ export const NormalParagraph = () => {
     });
   };
 
-  return <ToolbarItem onClick={normalPOnClick}>Normal P</ToolbarItem>;
+  return (
+    <button className={"toolbar__item"} onClick={normalPOnClick}>
+      Normal P
+    </button>
+  );
 };
 
 type ListTags = "ul" | "ol" | "checklist";
@@ -238,9 +272,13 @@ export const Listing = () => {
   return (
     <>
       {listingTags.map((tag, i) => (
-        <ToolbarItem key={i} onClick={() => listingOnClick(tag)}>
+        <button
+          className={"toolbar__item"}
+          key={i}
+          onClick={() => listingOnClick(tag)}
+        >
           {tag}
-        </ToolbarItem>
+        </button>
       ))}
     </>
   );
@@ -258,5 +296,9 @@ export const Blockquote = () => {
     });
   };
 
-  return <ToolbarItem onClick={blockquoteOnClick}>quote</ToolbarItem>;
+  return (
+    <button className={"toolbar__item"} onClick={blockquoteOnClick}>
+      quote
+    </button>
+  );
 };

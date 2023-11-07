@@ -1,3 +1,61 @@
+.editorwrapper--Lexical {
+    flex-direction: column;
+    align-items: center;
+    align-self: center;
+    width: 80%;
+    color: black;
+}
+
+.customtoolbar {
+    display: flex;
+    width: 100%;
+    gap: 5px;
+    align-items: center;
+    padding: 3px 6px;
+    border: 1px solid #c7c7c7;
+
+    border-radius: 10px 10px 0 0;
+    margin: 10px 0;
+}
+
+.toolbar__item{
+    display: inline-block;
+    line-height: 0.8;
+    cursor: pointer;
+    padding: 3px 6px;
+    border: none;
+    background: none;
+    color: black;
+    align-items: baseline;
+
+    min-width: 30px;
+    font-size: 14px;
+}
+
+.toolbar__item :hover{
+    background: #d1e3ff;
+    border-radius: 5px;
+}
+
+.dropdown-content {
+    display: none;
+}
+
+.open {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    justify-content: center;
+    position: absolute;
+    background-color: #f8f8f8;
+    width: 100px;
+    padding: 3px 6px;
+    z-index: 10;
+    border-radius: 10px;
+    border: 2px solid #c7c7c7;
+    text-align: center;
+}
 
 p, span {
     line-height: 1.5;
@@ -8,138 +66,6 @@ p, span {
     padding: 1px 0.25rem;
     font-family: Menlo, Consolas, Monaco, monospace;
     font-size: 94%;
-}
-
-.linkPreviewContainer {
-    display: flex;
-    cursor: pointer;
-}
-
-.linkPreviewContainer:hover {
-    opacity: 0.8;
-}
-
-.linkPreviewContainer:focus{
-    outline: 2px solid rgb(60, 132, 244);
-    padding: 8px;
-}
-
-.previewBox {
-    width: 600px;
-    /*width: 60%;*/
-    height: 80px;
-    display: flex;
-    flex-direction: row-reverse;
-    gap: 10px;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0 5px 10px;
-    background-color: white;
-    border: 2px solid lightgray;
-    border-radius: 10px;
-    margin-top: 10px;
-    cursor: pointer;
-    position: relative;
-
-}
-
-.previewImage {
-    min-width: 60px;
-    height: 100%;
-    border-radius: 8px;
-    object-fit: contain;
-    padding-right: 10px;
-}
-
-.previewTextWrapper{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    gap: 5px;
-    width: 100%;
-    height: 100%;
-}
-
-.previewTitle {
-    color: black;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.previewDescription {
-    color: black;
-    font-size: 12px;
-    font-weight: 200;
-    text-align: start;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.closePreview {
-    position: absolute;
-    top: 0;
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    color: lightgray;
-}
-
-.closePreview:hover{
-    color: darkgray;
-    font-weight: 700;
-}
-
-.draggable-block-menu {
-    border-radius: 4px;
-    padding: 2px 1px;
-    cursor: grab;
-    opacity: 0;
-    position: absolute;
-    left: 0;
-    top: 0;
-    will-change: transform;
-}
-
-.draggable-block-menu .icon {
-    width: 16px;
-    height: 16px;
-    opacity: 0.3;
-    /*background-image: url("./draggable-block-icon.svg");*/
-    justify-self: center;
-    align-self: center;
-}
-
-.draggable-block-menu:active {
-    cursor: grabbing;
-}
-
-.draggable-block-menu:hover {
-    background-color: #efefef;
-}
-
-.draggable-block-target-line {
-    pointer-events: none;
-    background: deepskyblue;
-    height: 4px;
-    position: absolute;
-    left: 0;
-    top: 0;
-    opacity: 0;
-    will-change: transform;
-}
-
-.loading {
-    position: absolute;
-    top: 200px;
-    left: 0;
-    width: 100px;
-    height: 50px;
-    padding: 10px;
-    background-color: red;
-    border: thin solid gray;
 }
 
 .codeblock {

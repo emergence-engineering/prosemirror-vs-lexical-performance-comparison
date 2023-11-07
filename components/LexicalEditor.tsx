@@ -17,18 +17,7 @@ import {
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
-import styled from "styled-components";
-import { Wrapper } from "./PMEditor";
 import { LinkPlugin } from "@lexical/react/LexicalLinkPlugin";
-import LexicalClickableLinkPlugin from "@lexical/react/LexicalClickableLinkPlugin";
-
-const EditorWrapper = styled(Wrapper)`
-  flex-direction: column;
-  align-items: center;
-  align-self: center;
-  width: 80%;
-  color: black;
-`;
 
 const myTheme = {
   text: {
@@ -70,16 +59,12 @@ const LexicalEditor = () => {
       return text.startsWith("http") ? text : `https://${text}`;
     }),
   ];
-
-  const urlRegExp = new RegExp(
-    /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)((?:\/[+~%/.\w-_]*)?\??(?:[-+=&;%@.\w_]*)#?(?:[\w]*))?)/,
-  );
   function validateUrl(url: string): boolean {
-    return url === "https://" || urlRegExp.test(url);
+    return url === "https://" || URL_REGEX.test(url);
   }
 
   return (
-    <EditorWrapper>
+    <div className={"editorwrapper--Lexical"}>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <MarkdownShortcutPlugin />
@@ -97,7 +82,7 @@ const LexicalEditor = () => {
           ErrorBoundary={LexicalErrorBoundary}
         />
       </LexicalComposer>
-    </EditorWrapper>
+    </div>
   );
 };
 
