@@ -1,28 +1,51 @@
 import { test, expect } from "@playwright/test";
+import type {
+  PerformanceOptions,
+  PlaywrightPerformance,
+  PerformanceWorker,
+} from "playwright-performance";
+import { playwrightPerformance } from "playwright-performance";
 
 test.describe("Lexical editor performance tests", () => {
-  test("measure editor initialization time", async ({ page }) => {
-    await page.goto("http://localhost:3000/lexical");
-    await expect(page.locator(".ContentEditable__root")).toBeVisible();
+  // test("measure editor initialization time", async ({ page }) => {
+  //   await page.goto("http://localhost:3000/lexical");
+  //   await expect(page.locator(".ContentEditable__root")).toBeVisible();
+  //
+  //   const initializationTime = await page.evaluate(() => {
+  //     const timing = window.performance.timing;
+  //     return timing.domInteractive - timing.navigationStart;
+  //   });
+  //
+  //   console.log(`Lexical Initialization Time: ${initializationTime}ms`);
+  // });
 
-    const initializationTime = await page.evaluate(() => {
-      const timing = window.performance.timing;
-      return timing.domInteractive - timing.navigationStart;
-    });
+  test("measure input latency PLAYWRIGHT", async ({ page }) => {
+    const startTime = Date.now();
 
-    console.log(`Lexical Initialization Time: ${initializationTime}ms`);
-  });
-
-  test("measure input latency", async ({ page }) => {
     await page.goto("http://localhost:3000/lexical");
     await page.click(".ContentEditable__root");
 
-    const startTime = Date.now();
     await page.keyboard.type("Hello, World!");
     const latency = Date.now() - startTime;
 
-    console.log(`Lexical Input Latency: ${latency}ms`);
+    console.log(`Lexical Input Latency PLAYWRIGHT: ${latency}ms`);
   });
+
+  test.extend<PlaywrightPerformance, PerformanceOptions & PerformanceWorker>({
+    performance: playwrightPerformance.performance,
+    performanceOptions: [{}, { scope: "worker" }],
+    worker: [playwrightPerformance.worker, { scope: "worker", auto: true }],
+  })("measure input latency PERFORMANCE", async ({ page, performance }) => {
+    performance.sampleStart("input lat");
+
+    await page.goto("http://localhost:3000/lexical");
+    await page.click(".ContentEditable__root");
+    await page.keyboard.type("Hello, World!");
+
+    performance.sampleEnd("input lat");
+  });
+
+  /*
 
   test("measure memory usage", async ({ page }) => {
     await page.goto("http://localhost:3000/lexical");
@@ -139,4 +162,6 @@ test.describe("Lexical editor performance tests", () => {
     const pasteTime = performance.now() - startTimePaste;
     console.log(`Lexical Paste Operation Time: ${pasteTime}ms`);
   });
+
+ */
 });
