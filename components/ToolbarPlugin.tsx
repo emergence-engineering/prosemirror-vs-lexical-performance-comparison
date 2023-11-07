@@ -44,8 +44,8 @@ export const ToolbarItem = styled.button`
   }
 `;
 
-const Dropdown = styled.div<{ isTypeOpen: boolean }>`
-  display: ${({ isTypeOpen }) => (isTypeOpen ? "flex" : "none")};
+const Dropdown = styled.div<{ $isTypeOpen: boolean }>`
+  display: ${({ $isTypeOpen }) => ($isTypeOpen ? "flex" : "none")};
   flex-direction: column;
   align-items: center;
   gap: 5px;
@@ -80,7 +80,7 @@ const ToolbarPlugin = () => {
       <HR />
       <div ref={typeRef} onClick={() => setIsTypeOpen(!isTypeOpen)}>
         <ToolbarItem>Type ⭣</ToolbarItem>
-        <Dropdown isTypeOpen={isTypeOpen} id={"s"}>
+        <Dropdown $isTypeOpen={isTypeOpen} id={"s"}>
           <NormalParagraph />
           <Heading />
           <CodeBlock />
