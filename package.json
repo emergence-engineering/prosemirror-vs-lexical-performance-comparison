@@ -9,6 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@lexical/link": "^0.12.2",
+    "@lexical/list": "^0.12.2",
+    "@lexical/react": "^0.12.2",
+    "@lexical/selection": "^0.12.2",
     "@next/font": "14.0.1",
     "@types/node": "20.8.10",
     "@types/react": "18.2.36",
@@ -16,8 +20,18 @@
     "eslint": "8.53.0",
     "eslint-config-next": "14.0.1",
     "next": "14.0.1",
+    "prosemirror-example-setup": "^1.2.2",
+    "prosemirror-model": "^1.19.3",
+    "prosemirror-schema-basic": "^1.2.2",
+    "prosemirror-schema-list": "^1.3.0",
+    "prosemirror-state": "^1.4.3",
+    "prosemirror-view": "^1.32.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "styled-components": "^6.1.0",
     "typescript": "5.2.2"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.3"
   }
 }
