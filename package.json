@@ -2,11 +2,14 @@
   "name": "prosemirror-vs-lexical-performance-comparison",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "author": "Emergence-Engineering",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "playwright test"
   },
   "dependencies": {
     "@lexical/link": "^0.12.2",
@@ -32,6 +35,7 @@
     "typescript": "5.2.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.39.0",
     "prettier": "^3.0.3"
   }
 }
