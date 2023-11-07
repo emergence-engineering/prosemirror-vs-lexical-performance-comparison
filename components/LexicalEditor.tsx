@@ -27,6 +27,7 @@ const EditorWrapper = styled(Wrapper)`
   align-items: center;
   align-self: center;
   width: 80%;
+  color: black;
 `;
 
 const myTheme = {
