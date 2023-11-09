@@ -9,7 +9,8 @@ const Header = () => {
         href={"http://emergence-engineering.com"}
         target={"_blank"}
       >
-        <Image src={"/ee-logo.svg"} width={250} height={42} alt={""} />
+        {/*<Image src={"/ee-logo.svg"} width={250} height={42} alt={""} />*/}
+        <span>Emergence Engineering</span>
       </a>
       <div className={"navbar"}>
         <div className={"navbar__nav"}>
