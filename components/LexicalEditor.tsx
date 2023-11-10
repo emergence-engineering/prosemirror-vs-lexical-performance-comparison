@@ -10,10 +10,6 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import LexicalErrorBoundary from "@lexical/react/LexicalErrorBoundary";
 import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPlugin";
 import ToolbarPlugin from "./ToolbarPlugin";
-import {
-  AutoLinkPlugin,
-  createLinkMatcherWithRegExp,
-} from "@lexical/react/LexicalAutoLinkPlugin";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { ListItemNode, ListNode } from "@lexical/list";
 import { ListPlugin } from "@lexical/react/LexicalListPlugin";
@@ -51,28 +47,15 @@ const initialConfig = {
   ],
 };
 const LexicalEditor = () => {
-  const URL_REGEX =
-    /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/;
-
-  const MATCHERS = [
-    createLinkMatcherWithRegExp(URL_REGEX, (text) => {
-      return text.startsWith("http") ? text : `https://${text}`;
-    }),
-  ];
-  function validateUrl(url: string): boolean {
-    return url === "https://" || URL_REGEX.test(url);
-  }
-
   return (
     <div className={"editorwrapper--Lexical"}>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <MarkdownShortcutPlugin />
-        <AutoLinkPlugin matchers={MATCHERS} />
         <HorizontalRulePlugin />
         <HistoryPlugin />
         <ListPlugin />
-        <LinkPlugin validateUrl={validateUrl} />
+        <LinkPlugin />
 
         <RichTextPlugin
           contentEditable={

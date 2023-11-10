@@ -7,9 +7,10 @@ import {
   Listing,
   Monocode,
   NormalParagraph,
+  TextToLink,
   UnDoReDo,
 } from "./ToolbarItems";
-import React, { useRef, useState } from "react";
+import React from "react";
 
 // bold italic mono link, insert img and hr, type plain and code and heading, undo, redo, ul, ol, quote
 
@@ -24,8 +25,11 @@ const ToolbarPlugin = () => {
     <div className={"customtoolbar"}>
       <FormatText />
       <Monocode />
+      <TextToLink />
+
       {/*<InsertLink />*/}
       <HR />
+
       <div onClick={handleDropdown}>
         <button className={"toolbar__item"}>Type ⭣</button>
         <div className={"dropdown-content"} id={"type-dropdown"}>

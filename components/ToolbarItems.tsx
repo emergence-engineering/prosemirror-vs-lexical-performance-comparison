@@ -9,7 +9,7 @@ import {
 } from "lexical";
 import { $setBlocksType } from "@lexical/selection";
 import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
-import { $createLinkNode } from "@lexical/link";
+import { TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useCallback, useState } from "react";
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
 import { $createCodeNode } from "@lexical/code";
@@ -65,70 +65,49 @@ export const Monocode = (): JSX.Element => {
   );
 };
 
-export const InsertLink = (): JSX.Element => {
+export const TextToLink = (): JSX.Element => {
   const [editor] = useLexicalComposerContext();
   const [isLink, setIsLink] = useState(false);
-  const [link, setLink] = useState("");
-  const [isSeen, setIsSeen] = useState(false);
-  const linkRegex =
-    /[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/;
 
-  const linkOnClick = useCallback(() => {
-    setIsLink(!isLink);
-    setIsSeen(true);
-  }, [editor, isLink]);
+  const sanitizeUrl = useCallback((url: string): string => {
+    const hasHttpRegex = /^(https?:\/\/)/;
 
-  const handleLinkEnter = useCallback(
-    (link: string) => {
-      if (link === "") {
-        alert("link is empty");
-        setIsSeen(false);
-        return;
+    const URL_REGEX =
+      /((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)/;
+
+    const SUPPORTED_URL_PROTOCOLS = new Set(["http:", "https:"]);
+    const validUrl = hasHttpRegex.test(url) ? url : `https://${url}`;
+    const isUrlValid = URL_REGEX.test(validUrl);
+    if (!isUrlValid) return "";
+    try {
+      const parsedUrl = new URL(validUrl);
+      // eslint-disable-next-line no-script-url
+      if (!SUPPORTED_URL_PROTOCOLS.has(parsedUrl.protocol)) {
+        return "about:blank";
       }
-      if (!linkRegex.test(link)) {
-        alert("invalid link");
-        setIsSeen(false);
-        return;
-      }
-      setIsSeen(false);
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          const linkNode = $createLinkNode(link);
-          selection.removeText();
-          selection.insertNodes([linkNode]);
-          editor.focus();
-        }
-      });
-    },
-    [editor, isLink, linkRegex],
-  );
+    } catch (error) {
+      console.error("Error parsing URL:", error);
+      return "about:blank";
+    }
+    return validUrl;
+  }, []);
+
+  const linkOnClick = useCallback(async () => {
+    if (!isLink) {
+      const givenUrl = window.prompt("Enter a URL:");
+      if (!givenUrl) return;
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl(givenUrl));
+      setIsLink(true);
+    } else {
+      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "");
+      setIsLink(false);
+    }
+  }, [editor, isLink, sanitizeUrl]);
 
   return (
-    <>
-      <button className={"toolbar__item"} onClick={linkOnClick}>
-        link
-      </button>
-
-      {isSeen && (
-        <div>
-          <input
-            type="text"
-            placeholder="http://"
-            value={link}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              setLink(e.target.value);
-            }}
-            onKeyDown={(e: React.KeyboardEvent) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleLinkEnter(link);
-              }
-            }}
-          />
-        </div>
-      )}
-    </>
+    <button className={"toolbar__item"} onClick={linkOnClick}>
+      Link
+    </button>
   );
 };
 
