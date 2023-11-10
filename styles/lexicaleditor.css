@@ -6,6 +6,12 @@
     color: black;
 }
 
+.mylink {
+    color: blue;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 .customtoolbar {
     display: flex;
     width: 100%;
