@@ -27,26 +27,26 @@ test.describe("ProseMirror editor performance tests", () => {
     console.log(`Prosemirror Input Latency: ${latency}ms`);
   });
 
-  test("measure memory usage", async ({ page }) => {
-    await page.goto("http://localhost:3000/");
-
-    // Note: Uncomment the following line if the browser is launched with the --expose-gc flag.
-    // await page.evaluate(() => globalThis.gc());
-
-    const memoryUsage = await page.evaluate(() => {
-      // This is non-standard and may not be available in all browsers/environments
-      if (performance.memory) {
-        return performance.memory.usedJSHeapSize;
-      }
-      return null;
-    });
-
-    if (memoryUsage !== null) {
-      console.log(`Prosemirror Memory Usage: ${memoryUsage} bytes`);
-    } else {
-      console.log(`Prosemirror Memory Usage: Measurement not available`);
-    }
-  });
+  // test("measure memory usage", async ({ page }) => {
+  //   await page.goto("http://localhost:3000/");
+  //
+  //   // Note: Uncomment the following line if the browser is launched with the --expose-gc flag.
+  //   // await page.evaluate(() => globalThis.gc());
+  //
+  //   const memoryUsage = await page.evaluate(() => {
+  //     // This is non-standard and may not be available in all browsers/environments
+  //     if (performance.memory) {
+  //       return performance.memory.usedJSHeapSize;
+  //     }
+  //     return null;
+  //   });
+  //
+  //   if (memoryUsage !== null) {
+  //     console.log(`Prosemirror Memory Usage: ${memoryUsage} bytes`);
+  //   } else {
+  //     console.log(`Prosemirror Memory Usage: Measurement not available`);
+  //   }
+  // });
 
   test("user interaction responsiveness", async ({ page }) => {
     await page.goto("http://localhost:3000/");

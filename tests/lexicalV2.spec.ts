@@ -1,4 +1,4 @@
-import { test, expect, Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { averageOf, findEditor, pasteText, selectText } from "./utils";
 
 test.describe("Lexical editor performance tests", () => {
@@ -149,7 +149,7 @@ test.describe("Lexical editor performance tests", () => {
 
 /////
 
-test.only("measure text selection performance", async ({ page, browser }) => {
+test("measure text selection performance", async ({ page, browser }) => {
   await browser.startTracing(page, {
     path: "./trace.json",
     screenshots: true,
@@ -189,33 +189,43 @@ test.only("measure text selection performance", async ({ page, browser }) => {
   console.log(`Average Selection Duration: ${averageOf(selectionDurations)}ms`);
 });
 
-test("measure formatting text performance", async ({ page, browser }) => {
+test.only("measure formatting text performance", async ({ page, browser }) => {
   await browser.startTracing(page, {
     path: "./trace.json",
     screenshots: true,
   });
 
   await findEditor(page);
-  await pasteText(page, 10);
 
   const formatTextDuration = await page.evaluate((selectTextFn) => {
-    const perfTimes = [];
-
     const editor = document.querySelector(".ContentEditable__root");
     if (!editor) return [];
+    const paragraph = document.createElement("p");
+    paragraph.innerHTML = "Lorem ipsum ".repeat(2);
+    // editor.innerHTML = "";
+    // editor.appendChild(paragraph);
+
+    const perfTimes = [];
 
     const selectTextFunction = new Function("return " + selectTextFn)();
     selectTextFunction(editor);
 
     for (let i = 0; i < 20; i++) {
+      editor.innerHTML = "";
+      editor.appendChild(paragraph);
       performance.mark("start-formatting");
       const boldButton = Array.from(
         document.querySelectorAll("button.toolbar__item"),
       ).find((button) => button.textContent === "B") as HTMLElement | null;
       if (!boldButton) return [];
-      boldButton.click();
-
+      const clickEvent = new MouseEvent("click", {
+        view: window,
+        bubbles: true,
+        cancelable: false,
+      });
+      boldButton.dispatchEvent(clickEvent);
       performance.mark("end-formatting");
+
       performance.measure(
         "text-formatting",
         "start-formatting",
@@ -227,8 +237,14 @@ test("measure formatting text performance", async ({ page, browser }) => {
       if (!measure) return [];
       perfTimes.push(measure.duration);
     }
+
+    const isBoldApplied = editor.innerHTML.includes("<strong>");
+    console.log("Is bold applied:", isBoldApplied);
+
     return perfTimes;
   }, selectText.toString());
+
+  await page.waitForTimeout(2000);
 
   await browser.stopTracing();
   console.log(
@@ -238,7 +254,7 @@ test("measure formatting text performance", async ({ page, browser }) => {
 
 test("measure list magic performance", async ({ page, browser }) => {
   await browser.startTracing(page, {
-    path: "./trace.json",
+    path: "../tests/trace.json",
     screenshots: true,
   });
 
@@ -252,20 +268,27 @@ test("measure list magic performance", async ({ page, browser }) => {
     const editor = document.querySelector(".ContentEditable__root");
     if (!editor)
       return { createTimes: [], addingTimes: [], modifyingTimes: [] };
-    const list = new Array(100).fill("Lorem ipsum ");
+    const originalList = new Array(3).fill("Lorem ipsum ");
     const selectTextFunction = new Function("return " + selectTextFn)();
-    editor.textContent = list.join("\n");
+    editor.textContent = originalList.join("\n");
 
     // creating a bulletList
     for (let i = 0; i < 20; i++) {
       performance.mark("start-creating");
       selectTextFunction(editor);
+
       const bulletListButton = Array.from(
         document.querySelectorAll("button.toolbar__item"),
       ).find((button) => button.textContent === "ul") as HTMLElement | null;
       if (!bulletListButton)
-        return { createTimes: [], addingTimes: [], modifyingTimes: [] };
+        return {
+          createTimes: [],
+          addingTimes: [],
+          modifyingTimes: [],
+        };
+      // TODO: not working
       bulletListButton.click();
+
       performance.mark("end-creating");
 
       performance.measure("creating-list", "start-creating", "end-creating");
@@ -273,29 +296,52 @@ test("measure list magic performance", async ({ page, browser }) => {
         .getEntriesByName("creating-list")
         .pop();
       if (!measureListCreating)
-        return { createTimes: [], addingTimes: [], modifyingTimes: [] };
+        return {
+          createTimes: [],
+          addingTimes: [],
+          modifyingTimes: [],
+        };
       createTimes.push(measureListCreating.duration);
     }
+    console.log(editor.outerHTML);
 
-    // adding items to the bulletList --- would it be better to hitting enter and pasting i?
+    // adding items to the bulletList
     for (let i = 0; i < 20; i++) {
-      const newList = new Array(100).fill("Lorem ipsum2 ");
+      const newList = new Array(3).fill("Lorem ipsum2 ");
+
       performance.mark("start-adding");
-      editor.textContent += `\n ${newList.join("\n")}`;
+      for (let j = 0; j < newList.length; j++) {
+        editor.textContent += `\n ${newList[j]}`;
+      }
       performance.mark("end-adding");
+      if (i < 19) {
+        editor.textContent = originalList.join("\n");
+      }
 
       performance.measure("adding-to-list", "start-adding", "end-adding");
       const measureListAdding = performance
         .getEntriesByName("adding-to-list")
         .pop();
       if (!measureListAdding)
-        return { createTimes: [], addingTimes: [1, 1, 1], modifyingTimes: [] };
+        return {
+          createTimes: [],
+          addingTimes: [1, 1, 1],
+          modifyingTimes: [],
+        };
       addingTimes.push(measureListAdding.duration);
     }
 
     // modifying items on the bulletList
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 4; i++) {
       performance.mark("start-modifying");
+      // for (let m = 0; m < editor.textContent.length; m++) {
+      //   if (editor.textContent[m].includes("Lorem ipsum")) {
+      //     editor.textContent = editor.textContent[m].replace(
+      //       "Lorem ipsum",
+      //       "Lorem ipsum3",
+      //     );
+      //   }
+      // }
       performance.mark("end-modifying");
 
       performance.measure("modifying-list", "start-modifying", "end-modifying");
@@ -303,7 +349,11 @@ test("measure list magic performance", async ({ page, browser }) => {
         .getEntriesByName("modifying-list")
         .pop();
       if (!measureListModifying)
-        return { createTimes: [], addingTimes: [], modifyingTimes: [2, 2, 2] };
+        return {
+          createTimes: [],
+          addingTimes: [],
+          modifyingTimes: [2, 2, 2],
+        };
       modifyingTimes.push(measureListModifying.duration);
     }
     return { createTimes, addingTimes, modifyingTimes };
