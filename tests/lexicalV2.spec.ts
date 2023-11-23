@@ -471,7 +471,7 @@ test("list magic performance", async ({ page, browser }) => {
 });
 
 // TODO: get rid of setTimeouts
-test("keyboard shortcuts responsiveness", async ({ page, browser }) => {
+test.only("keyboard shortcuts responsiveness", async ({ page, browser }) => {
   await browser.startTracing(page, {
     path: "./trace.json",
     screenshots: true,
@@ -520,7 +520,7 @@ test("keyboard shortcuts responsiveness", async ({ page, browser }) => {
         editor.dispatchEvent(keyupEvent);
       }
 
-      simulatePasteFn("Trying out some shortcuts.  ".repeat(10), editor);
+      simulatePasteFn("Trying out some shortcuts.  ".repeat(1000), editor);
       setTimeout(() => {
         selectTextFn(editor);
       }, 0.5);
