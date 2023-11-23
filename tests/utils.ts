@@ -28,10 +28,60 @@ export const pasteText = async (page: Page, n: number) => {
 
 export const selectText = (element: Element) => {
   const selection = window.getSelection();
-  if (!selection) return;
+  if (!selection) return "oo";
   const range = document.createRange();
   range.selectNodeContents(element);
   selection.removeAllRanges();
   selection.addRange(range);
-  // return selection.toString();
+  return selection.toString();
+};
+
+export function simulatePaste(text: string, element: any) {
+  const event = new Event("paste", {
+    bubbles: true,
+    cancelable: true,
+  });
+
+  event.clipboardData = {
+    getData: function (type: any) {
+      if (type === "text/plain") {
+        return text;
+      }
+      return "";
+    },
+  };
+  element.dispatchEvent(event);
+}
+
+export function simulateCut(element: any) {
+  const event = new Event("cut", {
+    bubbles: true,
+    cancelable: true,
+  });
+
+  // Dispatch the event
+  element.dispatchEvent(event);
+}
+
+export const createObserver = (qs: string, doSomething: () => void) => {
+  return new MutationObserver((mutations, obs) => {
+    for (const mutation of mutations) {
+      if (mutation.type === "childList") {
+        const searchedElements =
+          mutation.target.parentElement?.querySelectorAll(qs);
+
+        if (searchedElements && searchedElements.length > 0) {
+          doSomething();
+          obs.disconnect(); // Stop observing once the change is detected
+          break;
+        }
+      }
+    }
+  });
+};
+
+export const simulateTyping = (text: string, editor: any) => {
+  text.split("").forEach((char) => {
+    simulatePaste(char, editor);
+  });
 };

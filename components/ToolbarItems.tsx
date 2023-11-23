@@ -145,14 +145,14 @@ export const UnDoReDo = () => {
         id={"undo"}
         onClick={(e) => undoRedo(e)}
       >
-        {"<<"}
+        {"undo"}
       </button>
       <button
         className={"toolbar__item"}
         id={"redo"}
         onClick={(e) => undoRedo(e)}
       >
-        {">>"}
+        {"redo"}
       </button>
     </>
   );
