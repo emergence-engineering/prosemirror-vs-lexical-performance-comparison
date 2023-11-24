@@ -63,25 +63,26 @@ export function simulateCut(element: any) {
   element.dispatchEvent(event);
 }
 
-export const createObserver = (qs: string, doSomething: () => void) => {
+export const createObserver = (
+  qs: string,
+  doSomething: () => void,
+  isDeleted?: boolean,
+) => {
   return new MutationObserver((mutations, obs) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
         const searchedElements =
           mutation.target.parentElement?.querySelectorAll(qs);
 
-        if (searchedElements && searchedElements.length > 0) {
+        if (
+          (searchedElements && searchedElements.length > 0) ||
+          (isDeleted && !searchedElements)
+        ) {
           doSomething();
           obs.disconnect(); // Stop observing once the change is detected
           break;
         }
       }
     }
-  });
-};
-
-export const simulateTyping = (text: string, editor: any) => {
-  text.split("").forEach((char) => {
-    simulatePaste(char, editor);
   });
 };
