@@ -14,7 +14,7 @@ test.describe("Lexical - user interaction tests", () => {
     await findEditor(page);
   });
 
-  test("measure input latency", async ({ page }) => {
+  test("input latency", async ({ page }) => {
     const typeText = await page.evaluate(
       ([simulatePasteFunction]) => {
         const perfTimes = [];
@@ -83,7 +83,7 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Typing Performance at Scale: ${averageOf(typeText)}ms`);
   });
 
-  test.only("undo/redo performance", async ({ page }) => {
+  test("undo/redo performance", async ({ page }) => {
     await page.keyboard.type("Testing it");
 
     const undoredo = await page.evaluate(() => {
@@ -131,34 +131,85 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Lexical Redo Performance: ${averageOf(redoTimes)}ms`);
   });
 
-  // TODO
-  test("scroll performance", async ({ page }) => {
-    test.setTimeout(60000);
-    const largeText = "Lorem ipsum ".repeat(1000); // Creates a large block of text
-    const editor = page.locator("div[contenteditable='true']");
+  // none of the editor are scrollable by default
+  test.skip("scroll performance", async ({ page }) => {
+    const largeText = "Lorem ipsum ".repeat(500);
+    await page.keyboard.type(largeText, { delay: 0 });
 
-    await page.keyboard.type(largeText, { delay: 0 }); // 'delay: 0' for fast typing, adjust as needed
+    const scrollPerformance = await page.evaluate(() => {
+      const perfTimes = [];
+      const editor = document.querySelector(
+        ".ContentEditable__root",
+      ) as HTMLElement | null;
+      if (!editor) return [];
 
-    // Measure scroll performance
-    await editor.evaluate((node) => (node.scrollTop = 0)); // Scroll to top first
-    const startTimeScroll = performance.now();
-    await editor.evaluate((node) => (node.scrollTop = node.scrollHeight));
-    const scrollTime = performance.now() - startTimeScroll;
+      for (let i = 0; i < 1; i++) {
+        performance.mark("start-scroll");
+        editor.scrollTop = editor.scrollHeight; // Scroll to the bottom
+        performance.mark("end-scroll");
 
-    console.log(`Lexical Scroll Performance: ${scrollTime}ms`);
+        performance.measure("scroll", "start-scroll", "end-scroll");
+        const scrollLatency = performance.getEntriesByName("scroll").pop();
+        if (!scrollLatency) return [];
+        perfTimes.push(scrollLatency.duration);
+      }
+      return perfTimes;
+    });
+
+    console.log(`Lexical Scroll Performance: ${scrollPerformance}ms`);
   });
 
-  // TODO
-  test("paste operation", async ({ page }) => {
-    const perfTimes = [];
+  test.only("paste operation", async ({ page }) => {
+    const pastePerf = await page.evaluate(
+      ([simulatePasteFunction, createObserverFunction]) => {
+        const perfTimes = [];
+        const editor = document.querySelector(
+          ".ContentEditable__root",
+        ) as HTMLElement | null;
+        if (!editor) return [];
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        if (!undoButton) return [];
 
-    for (let i = 0; i < 20; i++) {
-      const pasteTime = await pasteText(page, 10000);
-      perfTimes.push(pasteTime);
-    }
-    console.log(
-      `Lexical Average Paste Operation Time: ${averageOf(perfTimes)}ms`,
+        const simulatePasteFn = new Function(
+          "return " + simulatePasteFunction,
+        )();
+        const createObserverFn = new Function(
+          "return " + createObserverFunction,
+        )();
+        const pasteEndObserver = createObserverFn(
+          'span[data-lexical-text="true"]',
+          () => {
+            performance.mark("end");
+          },
+        );
+        pasteEndObserver.observe(editor, { childList: true });
+
+        for (let i = 0; i < 1000; i++) {
+          performance.mark("start");
+          simulatePasteFn(
+            "This is just a sentence pasted 1000 times. ".repeat(100),
+            editor,
+          );
+          // otherwise it would execute before pasting has finished
+          setTimeout(() => {
+            undoButton.click();
+          }, 1);
+
+          if (performance.mark("end")) {
+            performance.measure("paste", "start", "end");
+            const pasteLatency = performance.getEntriesByName("paste").pop();
+            if (!pasteLatency) return [];
+            perfTimes.push(pasteLatency.duration);
+          }
+        }
+        return perfTimes;
+      },
+      [simulatePaste.toString(), createObserver.toString()],
     );
+
+    console.log(`Average Paste Operation Time: ${averageOf(pastePerf)}ms`);
   });
 
   test("text selection performance", async ({ page, browser }) => {
