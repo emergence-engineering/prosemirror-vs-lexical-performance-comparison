@@ -28,12 +28,11 @@ export const pasteText = async (page: Page, n: number) => {
 
 export const selectText = (element: Element) => {
   const selection = window.getSelection();
-  if (!selection) return "oo";
+  if (!selection) return;
   const range = document.createRange();
   range.selectNodeContents(element);
   selection.removeAllRanges();
   selection.addRange(range);
-  return selection.toString();
 };
 
 export function simulatePaste(text: string, element: any) {

@@ -10,8 +10,16 @@ import {
 } from "./utils";
 
 test.describe("Lexical - user interaction tests", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browser }) => {
+    await browser.startTracing(page, {
+      path: "./trace.json",
+      screenshots: true,
+    });
     await findEditor(page);
+  });
+
+  test.afterEach(async ({ browser }) => {
+    await browser.stopTracing();
   });
 
   test("input latency", async ({ page }) => {
@@ -131,7 +139,7 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Lexical Redo Performance: ${averageOf(redoTimes)}ms`);
   });
 
-  // none of the editor are scrollable by default
+  // none of the editors are scrollable by default
   test.skip("scroll performance", async ({ page }) => {
     const largeText = "Lorem ipsum ".repeat(500);
     await page.keyboard.type(largeText, { delay: 0 });
@@ -159,7 +167,7 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Lexical Scroll Performance: ${scrollPerformance}ms`);
   });
 
-  test.only("paste operation", async ({ page }) => {
+  test("paste operation performance", async ({ page }) => {
     const pastePerf = await page.evaluate(
       ([simulatePasteFunction, createObserverFunction]) => {
         const perfTimes = [];
@@ -213,31 +221,27 @@ test.describe("Lexical - user interaction tests", () => {
   });
 
   test("text selection performance", async ({ page, browser }) => {
-    await browser.startTracing(page, {
-      path: "./trace.json",
-      screenshots: true,
-    });
-
-    await findEditor(page);
-
     const selectionDurations = await page.evaluate(
-      ([simulatePasteFunction, selectTextFunction]) => {
+      ([simulatePasteFunction, selectTextFunction, createObserverFunction]) => {
         const perfTimes: number[] = [];
-
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
-
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
+        const selectTextFn = new Function("return " + selectTextFunction)();
+        const deselectText = () => {
+          const selection = window.getSelection();
+          if (!selection) return;
+          selection.removeAllRanges();
+        };
+
         simulatePasteFn(
           "This is a test for selecting large text. ".repeat(1000),
           editor,
         );
-
-        const selectTextFn = new Function("return " + selectTextFunction)();
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start-selection");
@@ -245,7 +249,9 @@ test.describe("Lexical - user interaction tests", () => {
             selectTextFn(editor);
           }, 0.5);
           performance.mark("end-selection");
-          editor.click();
+          setTimeout(() => {
+            deselectText();
+          }, 1);
 
           performance.measure(
             "text-selection",
@@ -261,69 +267,57 @@ test.describe("Lexical - user interaction tests", () => {
 
         return perfTimes;
       },
-      [simulatePaste.toString(), selectText.toString()],
+      [
+        simulatePaste.toString(),
+        selectText.toString(),
+        createObserver.toString(),
+      ],
     );
 
-    await browser.stopTracing();
     console.log(
-      `Average Selection Duration: ${averageOf(selectionDurations)}ms`,
+      `Lexical Average Selection Duration: ${averageOf(selectionDurations)}ms`,
     );
   });
 
   test("formatting text performance", async ({ page, browser }) => {
-    await browser.startTracing(page, {
-      path: "./trace.json",
-      screenshots: true,
-    });
-
-    await findEditor(page);
+    await page.keyboard.insertText(
+      "This is a test for formatting text. ".repeat(1000),
+    );
 
     const formatTextDuration = await page.evaluate(
       ([selectTextFunction, simulatePasteFunction, createObserverFunction]) => {
         const perfTimes = [];
-
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
-
-        const simulatePasteFn = new Function(
-          "return " + simulatePasteFunction,
-        )();
-        simulatePasteFn(
-          "This is a test for formatting large text. ".repeat(1000),
-          editor,
-        );
-        const selectTextFn = new Function("return " + selectTextFunction)();
-        setTimeout(() => {
-          selectTextFn(editor);
-        }, 0.5);
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-
         const boldButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "B") as HTMLElement | null;
         if (!boldButton) return [];
 
-        const observer = createObserverFn("strong", "end-formatting");
+        const selectTextFn = new Function("return " + selectTextFunction)();
+        const createObserverFn = new Function(
+          "return " + createObserverFunction,
+        )();
+        const boldObserver = createObserverFn("strong", "end-formatting");
+
+        // select text
+        selectTextFn(editor);
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start-formatting");
-          observer.observe(editor, { childList: true });
+          boldObserver.observe(editor, { childList: true });
           setTimeout(() => {
             boldButton.click();
-          }, 1);
+          }, 0.5);
 
           if (performance.mark("end-formatting")) {
-            boldButton.click();
             performance.measure(
               "text-formatting",
               "start-formatting",
               "end-formatting",
             );
-
             const measure = performance
               .getEntriesByName("text-formatting")
               .pop();
@@ -331,6 +325,9 @@ test.describe("Lexical - user interaction tests", () => {
             performance.clearMeasures();
             if (!measure) return [];
             perfTimes.push(measure.duration);
+
+            // to clear format
+            boldButton.click();
           }
         }
 
@@ -343,20 +340,12 @@ test.describe("Lexical - user interaction tests", () => {
       ],
     );
 
-    await browser.stopTracing();
     console.log(
       `Average Text Formatting Duration: ${averageOf(formatTextDuration)}ms`,
     );
   });
 
-  test("list magic performance", async ({ page, browser }) => {
-    await browser.startTracing(page, {
-      path: "../tests/trace.json",
-      screenshots: true,
-    });
-
-    await findEditor(page);
-
+  test.only("list magic performance", async ({ page, browser }) => {
     const createBulletList = await page.evaluate(
       ([simulatePasteFunction, selectTextFunction, createObserverFunction]) => {
         const createTimes = [];
@@ -526,7 +515,6 @@ test.describe("Lexical - user interaction tests", () => {
       [simulatePaste.toString(), selectText.toString(), simulateCut.toString()],
     );
 
-    await browser.stopTracing();
     const createTimes = createBulletList;
     const addingTimes = addToBulletList;
     const modifyingTimes = modifyBulletList;
@@ -543,12 +531,6 @@ test.describe("Lexical - user interaction tests", () => {
 
   // TODO: get rid of setTimeouts
   test("keyboard shortcuts responsiveness", async ({ page, browser }) => {
-    await browser.startTracing(page, {
-      path: "./trace.json",
-      screenshots: true,
-    });
-
-    // await findEditor(page);
     const shortcutActions = await page.evaluate(
       ([simulatePasteFunction, createObserverFunction]) => {
         const selectAllTimes: number[] = [];
@@ -672,7 +654,6 @@ test.describe("Lexical - user interaction tests", () => {
       ],
     );
 
-    await browser.stopTracing();
     const { selectAllTimes, boldTimes, italicTimes } = shortcutActions;
     console.log("Average duration of selecting all", averageOf(selectAllTimes));
     console.log("Average duration of bold", averageOf(boldTimes));
