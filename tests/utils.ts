@@ -14,18 +14,6 @@ export const averageOf = (perfTime: number[]) => {
   return perfTime.reduce((a, b) => a + b, 0) / perfTime.length;
 };
 
-export const pasteText = async (page: Page, n: number) => {
-  return page.evaluate((n) => {
-    const largeText = "Lorem ipsum ".repeat(n);
-    // navigator.clipboard.writeText(largeText);
-    const startTimePaste = performance.now();
-    let editor = document.querySelector("div[contenteditable='true']");
-    if (!editor) return 0;
-    editor.textContent = largeText;
-    return performance.now() - startTimePaste;
-  }, n);
-};
-
 export const selectText = (element: Element) => {
   const selection = window.getSelection();
   if (!selection) return;

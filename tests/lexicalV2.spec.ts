@@ -1,11 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { test } from "@playwright/test";
 import {
   averageOf,
   createObserver,
   findEditor,
-  pasteText,
   selectText,
-  simulateCut,
   simulatePaste,
 } from "./utils";
 
@@ -345,48 +343,48 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  test.only("list magic performance", async ({ page, browser }) => {
+  test("list: create performance", async ({ page, browser }) => {
+    const text = Array(3).fill("Lorem ipsum ");
+    // join them with \n was not working as the editor interpreted it as a soft break
+    // also can't use <br>, neither &nbsp;
+    for (let line of text) {
+      await page.keyboard.insertText(`${line}`);
+      await page.keyboard.press("Enter");
+    }
+
     const createBulletList = await page.evaluate(
-      ([simulatePasteFunction, selectTextFunction, createObserverFunction]) => {
+      ([selectTextFunction, createObserverFunction]) => {
         const createTimes = [];
 
-        const editor = document.querySelector(".ContentEditable__root");
+        const editor = document.querySelector(
+          ".ContentEditable__root",
+        ) as HTMLElement | null;
         if (!editor) return [];
-        const originalList = new Array(5).fill("Lorem ipsum ");
-
         const bulletListButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "ul") as HTMLElement | null;
         if (!bulletListButton) return [];
-
-        const simulatePasteFn = new Function(
-          "return " + simulatePasteFunction,
-        )();
         const selectTextFn = new Function("return " + selectTextFunction)();
         const createObserverFn = new Function(
           "return " + createObserverFunction,
         )();
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        if (!undoButton) return [];
+
         const perfEndObserver = createObserverFn("ul", () => {
           performance.mark("end-creating");
         });
-        const pasteEndObserver = createObserverFn(
-          'span[data-lexical-text="true"]',
-          () => {
-            selectTextFn(editor);
-          },
-        );
 
-        // 1. paste & select
-        simulatePasteFn(`${originalList.join("\n")}\n`, editor);
-        pasteEndObserver.observe(editor, { childList: true });
+        selectTextFn(editor);
 
-        // 2. creating a bulletList with ul button
-        for (let i = 0; i < 1001; i++) {
+        for (let i = 0; i < 11; i++) {
           performance.mark("start-creating");
           perfEndObserver.observe(editor, { childList: true });
           setTimeout(() => {
             bulletListButton.click();
-          }, 1);
+          }, 0.5);
 
           if (performance.mark("end-creating")) {
             performance.measure(
@@ -410,6 +408,23 @@ test.describe("Lexical - user interaction tests", () => {
         createObserver.toString(),
       ],
     );
+    console.log(
+      "Average duration of creating list",
+      averageOf(createBulletList),
+    );
+  });
+
+  // TODO: somehow undo the last line before the loop turns
+  test("list: add item performance", async ({ page, browser }) => {
+    const text = Array(3).fill("Lorem ipsum ");
+    const ulButton = await page.waitForSelector(
+      'button.toolbar__item:text("ul")',
+    );
+    await ulButton.click();
+    for (let line of text) {
+      await page.keyboard.insertText(`${line}`);
+      await page.keyboard.press("Enter");
+    }
     const addToBulletList = await page.evaluate(
       ([simulatePasteFunction]) => {
         const addingTimes = [];
@@ -424,17 +439,16 @@ test.describe("Lexical - user interaction tests", () => {
           "return " + simulatePasteFunction,
         )();
 
-        // can't run the test 1000 times because the undo.click is async
-        // and doesn't run as fast as the loop turns
-        // and can't put any observer on the undo action
-        for (let i = 0; i < 99; i++) {
+        for (let i = 0; i < 10; i++) {
           performance.mark("start-adding");
-          // couldn't find a way to simulate typing
+          // couldn't find a better way to simulate typing
           "adding an item \n".split("").forEach((char) => {
             simulatePasteFn(char, editor);
           });
           performance.mark("end-adding");
-          undoButton.click();
+          // can't undo it as the click is async and runs in diff speed as the loop
+          // cmd+z also doesn't work
+          // undoButton.click();
 
           performance.measure("adding-to-list", "start-adding", "end-adding");
           const measureListAdding = performance
@@ -447,19 +461,28 @@ test.describe("Lexical - user interaction tests", () => {
       },
       [simulatePaste.toString()],
     );
+    console.log(
+      "Average duration of adding items to the list",
+      averageOf(addToBulletList),
+    );
+  });
 
+  test.only("list: modifying performance", async ({ page, browser }) => {
+    const text = Array(3).fill("Lorem ipsum ");
+    const ulButton = await page.waitForSelector(
+      'button.toolbar__item:text("ul")',
+    );
+    await ulButton.click();
+    for (let line of text) {
+      await page.keyboard.insertText(`${line}`);
+      await page.keyboard.press("Enter");
+    }
     const modifyBulletList = await page.evaluate(
       ([simulatePasteFunction, selectTextFunction, simulateCutFunction]) => {
         const modifyingTimes = [];
         const editor = document.querySelector(".ContentEditable__root");
         if (!editor) return [];
         const selectTextFn = new Function("return " + selectTextFunction)();
-        const simulateCutFn = new Function("return " + simulateCutFunction)();
-        selectTextFn(editor);
-        simulateCutFn(editor);
-
-        // const originalList = new Array(5).fill("Lorem ipsum ");
-        const originalList = ["1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a"];
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
@@ -468,31 +491,23 @@ test.describe("Lexical - user interaction tests", () => {
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
         if (!undoButton) return [];
 
-        simulatePasteFn(`${originalList.join("\n")}`, editor);
+        selectTextFn(editor);
 
-        const moveCaret = (item: number, position: number, editor2: any) => {
+        // TODO: how to move the caret
+        const moveCaret = (position: number, editor: any) => {
           const range = document.createRange();
           const selection = window.getSelection();
-          const listItems = editor2.querySelectorAll("ul > li");
-          if (!listItems || !selection) return;
-
-          const secondItemSpan = listItems[item].querySelector("span");
-          const textNode = secondItemSpan?.firstChild;
-
-          // TODO: I can't write anywhere, why? I also can't reach the editor content
-          console.log("t", textNode.textContent);
-
-          if (textNode) {
-            range.setStart(textNode, position);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-          }
+          if (!selection) return;
+          range.setStart(editor, position);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          console.log("e", editor.outerHTML);
         };
 
         for (let i = 0; i < 4; i++) {
           performance.mark("start-modifying");
-          moveCaret(2, 2, editor);
+          moveCaret(1, editor);
           " item inserted successfully ".split("").forEach((char) => {
             simulatePasteFn(char, editor);
           });
@@ -512,20 +527,12 @@ test.describe("Lexical - user interaction tests", () => {
         }
         return modifyingTimes;
       },
-      [simulatePaste.toString(), selectText.toString(), simulateCut.toString()],
+      [simulatePaste.toString(), selectText.toString()],
     );
 
-    const createTimes = createBulletList;
-    const addingTimes = addToBulletList;
-    const modifyingTimes = modifyBulletList;
-    console.log("Average duration of creating list", averageOf(createTimes));
-    console.log(
-      "Average duration of adding items to list",
-      averageOf(addingTimes),
-    );
     console.log(
       "Average duration of modifying list",
-      averageOf(modifyingTimes),
+      averageOf(modifyBulletList),
     );
   });
 
