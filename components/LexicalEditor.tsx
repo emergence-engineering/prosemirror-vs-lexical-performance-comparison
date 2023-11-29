@@ -49,6 +49,8 @@ const initialConfig = {
 const LexicalEditor = () => {
   return (
     <div className={"editorwrapper--Lexical"}>
+      <br />
+      <h3>Lexical</h3>
       <LexicalComposer initialConfig={initialConfig}>
         <ToolbarPlugin />
         <MarkdownShortcutPlugin />

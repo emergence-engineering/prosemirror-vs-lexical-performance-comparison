@@ -26,7 +26,7 @@ export default defineConfig({
     // video: "on",
     // screenshot: "on",
     // launchOptions: {
-    //   slowMo: 2000,
+    //   slowMo: 1000,
     // },
     headless: true,
 
