@@ -23,21 +23,27 @@ export const selectText = (element: Element) => {
   selection.addRange(range);
 };
 
-export function simulatePaste(text: string, element: any) {
-  const event = new Event("paste", {
-    bubbles: true,
-    cancelable: true,
-  });
+// I had to turn this to async as using a pasteObserver was not enough for some tests
+export async function simulatePaste(text: string, element: any): Promise<void> {
+  return new Promise((resolve) => {
+    const event = new Event("paste", {
+      bubbles: true,
+      cancelable: true,
+    });
 
-  event.clipboardData = {
-    getData: function (type: any) {
-      if (type === "text/plain") {
-        return text;
-      }
-      return "";
-    },
-  };
-  element.dispatchEvent(event);
+    event.clipboardData = {
+      getData: function (type: any) {
+        if (type === "text/plain") {
+          return text;
+        }
+        return "";
+      },
+    };
+    element.dispatchEvent(event);
+    setTimeout(() => {
+      resolve();
+    }, 0);
+  });
 }
 
 export function simulateCut(element: any) {

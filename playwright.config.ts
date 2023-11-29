@@ -24,10 +24,10 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     // video: "on",
-    screenshot: "on",
-    launchOptions: {
-      slowMo: 500,
-    },
+    // screenshot: "on",
+    // launchOptions: {
+    //   slowMo: 2000,
+    // },
     headless: true,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */

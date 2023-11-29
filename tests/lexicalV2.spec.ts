@@ -9,20 +9,12 @@ import {
 
 test.describe("Lexical - user interaction tests", () => {
   test.beforeEach(async ({ page, browser }) => {
-    await browser.startTracing(page, {
-      path: "./trace.json",
-      screenshots: true,
-    });
     await findEditor(page);
-  });
-
-  test.afterEach(async ({ browser }) => {
-    await browser.stopTracing();
   });
 
   test("input latency", async ({ page }) => {
     const typeText = await page.evaluate(
-      ([simulatePasteFunction]) => {
+      async ([simulatePasteFunction]) => {
         const perfTimes = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
@@ -31,14 +23,20 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        if (!undoButton) return [];
+        const textChars = "Testing typing performance".split("");
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start");
           // couldn't find a better way to 'type'
-          "Testing typing performance".split("").forEach((char) => {
-            simulatePasteFn(char, editor);
-          });
+          for (const char of textChars) {
+            await simulatePasteFn(char, editor);
+          }
           performance.mark("end");
+          await undoButton.click();
         }
 
         performance.measure("typing", "start", "end");
@@ -56,7 +54,7 @@ test.describe("Lexical - user interaction tests", () => {
 
   test("typing performance at scale", async ({ page }) => {
     const typeText = await page.evaluate(
-      ([simulatePasteFunction]) => {
+      async ([simulatePasteFunction]) => {
         const perfTimes = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
@@ -65,16 +63,25 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        if (!undoButton) return [];
         const largeText = "Lorem ipsum ".repeat(500);
 
-        simulatePasteFn(largeText, editor);
+        await simulatePasteFn(largeText, editor);
+        const textChars = "Testing typing performance".split("");
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start");
-          "Testing typing performance".split("").forEach((char) => {
-            simulatePasteFn(char, editor);
-          });
+          for (let char of textChars) {
+            await simulatePasteFn(char, editor);
+          }
+          // "Testing typing performance".split("").forEach((char) => {
+          //   simulatePasteFn(char, editor);
+          // });
           performance.mark("end");
+          await undoButton.click();
 
           performance.measure("typing", "start", "end");
           const latency = performance.getEntriesByName("typing").pop();
@@ -92,7 +99,7 @@ test.describe("Lexical - user interaction tests", () => {
   test("undo/redo performance", async ({ page }) => {
     await page.keyboard.type("Testing it");
 
-    const undoredo = await page.evaluate(() => {
+    const undoredo = await page.evaluate(async () => {
       const undoTimes: number[] = [];
       const redoTimes: number[] = [];
       const editor = document.querySelector(
@@ -108,17 +115,14 @@ test.describe("Lexical - user interaction tests", () => {
       ).find((button) => button.textContent === "redo") as HTMLElement | null;
       if (!redoButton || !undoButton) return { undoTimes, redoTimes };
 
-      // can't put an observer onto the undo action
-      for (let i = 0; i < 1; i++) {
+      for (let i = 0; i < 1000; i++) {
         performance.mark("start-undo");
-        undoButton.click();
+        await undoButton.click();
         performance.mark("end-undo");
 
-        if (performance.mark("end-undo")) {
-          performance.mark("start-redo");
-          redoButton.click();
-          performance.mark("end-redo");
-        }
+        performance.mark("start-redo");
+        await redoButton.click();
+        performance.mark("end-redo");
 
         performance.measure("undo", "start-undo", "end-undo");
         const undoLatency = performance.getEntriesByName("undo").pop();
@@ -165,10 +169,10 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Lexical Scroll Performance: ${scrollPerformance}ms`);
   });
 
-  // TODO: Szerda
-  test("copy/paste keyboard shortcuts", async ({ page }) => {
+  // can't access copy/cut from the console, though the fn works fine with z, b, i, a
+  test.skip("copy/cut keyboard shortcuts", async ({ page }) => {
     const shortcutActions = await page.evaluate(
-      ([simulatePasteFunction, createObserverFunction]) => {
+      async ([simulatePasteFunction]) => {
         const copyTimes: number[] = [];
         const cutTimes: number[] = [];
         const editor = document.querySelector(".ContentEditable__root");
@@ -176,15 +180,13 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
 
-        document.addEventListener("copy", function (event) {
-          performance.mark("end-copy");
-        });
+        // document.addEventListener("copy", function (event) {
+        //   performance.mark("end-copy");
+        // });
         document.addEventListener("cut", function (event) {
-          performance.mark("end-cut");
+          // performance.mark("end-cut");
+          console.log("cut");
         });
 
         // can't be moved to utils, it breaks
@@ -212,26 +214,19 @@ test.describe("Lexical - user interaction tests", () => {
 
         // 1. paste and select
         simulatePasteFn("Trying out some shortcuts.  ".repeat(1000), editor);
-        setTimeout(() => {
-          simulateShortcut(editor, "a", "KeyA", 65);
-        }, 0.5);
+        await simulateShortcut(editor, "a", "KeyA", 65);
 
         // 2. copy
         for (let i = 0; i < 55; i++) {
           performance.mark("start-copy");
-          // setTimeout(() => {
-          simulateShortcut(editor, "c", "KeyC", 67);
-          // }, 1);
+          await simulateShortcut(editor, "c", "KeyC", 67);
         }
 
         // cut
-        if (performance.mark("end-copy")) {
-          for (let j = 0; j < 55; j++) {
-            performance.mark("start-cut");
-            setTimeout(() => {
-              simulateShortcut(editor, "i", "KeyI", 73);
-            }, 1.5);
-          }
+        for (let j = 0; j < 55; j++) {
+          performance.mark("start-cut");
+          await simulateShortcut(editor, "x", "KeyX", 88);
+          performance.mark("end-cut");
         }
 
         if (performance.mark("end-copy")) {
@@ -269,10 +264,9 @@ test.describe("Lexical - user interaction tests", () => {
     console.log("Average duration of cut", averageOf(cutTimes));
   });
 
-  // TODO: test if the 2 for loops don't interfere
   test("paste operation performance", async ({ page }) => {
     const pastePerf = await page.evaluate(
-      ([simulatePasteFunction, createObserverFunction]) => {
+      async ([simulatePasteFunction]) => {
         const perfTimes: number[] = [];
         const perfTimesChinese: number[] = [];
 
@@ -288,69 +282,42 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-        const pasteEndObserver = createObserverFn(
-          'span[data-lexical-text="true"]',
-          () => {
-            performance.mark("end");
-          },
-        );
-        const pasteEndChineseObserver = createObserverFn(
-          'span[data-lexical-text="true"]',
-          () => {
-            performance.mark("end");
-          },
-        );
 
-        for (let i = 0; i < 10; i++) {
-          pasteEndObserver.observe(editor, { childList: true });
+        for (let i = 0; i < 1000; i++) {
           performance.mark("start");
-          simulatePasteFn(
-            "This is just a sentence pasted 1000 times. ".repeat(100),
+          await simulatePasteFn(
+            "This is just a sentence pasted 1000 times. ".repeat(1000),
             editor,
           );
-          // otherwise it would execute before pasting has finished
-          setTimeout(() => {
-            undoButton.click();
-          }, 1);
+          performance.mark("end");
+          await undoButton.click();
 
-          if (performance.mark("end")) {
-            performance.measure("paste", "start", "end");
-            const pasteLatency = performance.getEntriesByName("paste").pop();
-            if (!pasteLatency) return { perfTimes, perfTimesChinese };
-            perfTimes.push(pasteLatency.duration);
-          }
+          performance.measure("paste", "start", "end");
+          const pasteLatency = performance.getEntriesByName("paste").pop();
+          if (!pasteLatency) return { perfTimes, perfTimesChinese };
+          perfTimes.push(pasteLatency.duration);
         }
 
-        for (let i = 0; i < 10; i++) {
-          pasteEndChineseObserver.observe(editor, { childList: true });
+        for (let i = 0; i < 1000; i++) {
           performance.mark("start-chinese");
-          simulatePasteFn(
-            "李红：不，那不是杂志。那是字典。".repeat(100),
+          await simulatePasteFn(
+            "李红：不，那不是杂志。那是字典。".repeat(1000),
             editor,
           );
-          setTimeout(() => {
-            undoButton.click();
-          }, 1);
+          performance.mark("end-chinese");
+          await undoButton.click();
 
-          if (performance.mark("end-chinese")) {
-            performance.measure(
-              "paste-chinese",
-              "start-chinese",
-              "end-chinese",
-            );
-            const pasteChineseLatency = performance
-              .getEntriesByName("paste-chinese")
-              .pop();
-            if (!pasteChineseLatency) return { perfTimes, perfTimesChinese };
-            perfTimesChinese.push(pasteChineseLatency.duration);
-          }
+          performance.measure("paste-chinese", "start-chinese", "end-chinese");
+          const pasteChineseLatency = performance
+            .getEntriesByName("paste-chinese")
+            .pop();
+          if (!pasteChineseLatency) return { perfTimes, perfTimesChinese };
+          perfTimesChinese.push(pasteChineseLatency.duration);
         }
+
         return { perfTimes, perfTimesChinese };
       },
-      [simulatePaste.toString(), createObserver.toString()],
+      [simulatePaste.toString()],
     );
     const { perfTimes, perfTimesChinese } = pastePerf;
     console.log(`Average Paste Operation Time: ${averageOf(perfTimes)}ms`);
@@ -361,64 +328,9 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  /*test("paste chinese text performance", async ({ page }) => {
-    const pastePerf = await page.evaluate(
-      ([simulatePasteFunction, createObserverFunction]) => {
-        const perfTimes = [];
-        const editor = document.querySelector(
-          ".ContentEditable__root",
-        ) as HTMLElement | null;
-        if (!editor) return [];
-        const undoButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return [];
-
-        const simulatePasteFn = new Function(
-          "return " + simulatePasteFunction,
-        )();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-        const pasteEndObserver = createObserverFn(
-          'span[data-lexical-text="true"]',
-          () => {
-            performance.mark("end");
-          },
-        );
-        pasteEndObserver.observe(editor, { childList: true });
-
-        for (let i = 0; i < 1000; i++) {
-          performance.mark("start");
-          simulatePasteFn(
-            "李红：不，那不是杂志。那是字典。".repeat(100),
-            editor,
-          );
-          // otherwise it would execute before pasting has finished
-          setTimeout(() => {
-            undoButton.click();
-          }, 1);
-
-          if (performance.mark("end")) {
-            performance.measure("paste", "start", "end");
-            const pasteLatency = performance.getEntriesByName("paste").pop();
-            if (!pasteLatency) return [];
-            perfTimes.push(pasteLatency.duration);
-          }
-        }
-        return perfTimes;
-      },
-      [simulatePaste.toString(), createObserver.toString()],
-    );
-
-    console.log(`Average Paste Operation Time: ${averageOf(pastePerf)}ms`);
-  });
-
-//*/
-
   test("text selection performance", async ({ page, browser }) => {
     const selectionPerf = await page.evaluate(
-      ([simulatePasteFunction, selectTextFunction, createObserverFunction]) => {
+      async ([simulatePasteFunction, selectTextFunction]) => {
         const perfTimes: number[] = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
@@ -435,21 +347,16 @@ test.describe("Lexical - user interaction tests", () => {
           selection.removeAllRanges();
         };
 
-        simulatePasteFn(
+        await simulatePasteFn(
           "This is a test for selecting large text. ".repeat(1000),
           editor,
         );
 
-        // can't quite put an observer on it
         for (let i = 0; i < 1000; i++) {
           performance.mark("start-selection");
-          setTimeout(() => {
-            selectTextFn(editor);
-          }, 0.5);
+          selectTextFn(editor);
           performance.mark("end-selection");
-          setTimeout(() => {
-            deselectText();
-          }, 1);
+          deselectText();
 
           performance.measure(
             "text-selection",
@@ -463,11 +370,7 @@ test.describe("Lexical - user interaction tests", () => {
 
         return perfTimes;
       },
-      [
-        simulatePaste.toString(),
-        selectText.toString(),
-        createObserver.toString(),
-      ],
+      [simulatePaste.toString(), selectText.toString()],
     );
 
     console.log(
@@ -477,11 +380,11 @@ test.describe("Lexical - user interaction tests", () => {
 
   test("formatting text performance", async ({ page, browser }) => {
     await page.keyboard.insertText(
-      "This is a test for formatting text. ".repeat(1000),
+      "This is a test for formatting large text. ".repeat(1000),
     );
 
     const formatTextDuration = await page.evaluate(
-      ([selectTextFunction, simulatePasteFunction, createObserverFunction]) => {
+      async ([selectTextFunction]) => {
         const perfTimes = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
@@ -491,22 +394,15 @@ test.describe("Lexical - user interaction tests", () => {
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "B") as HTMLElement | null;
         if (!boldButton) return [];
-
         const selectTextFn = new Function("return " + selectTextFunction)();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-        const boldObserver = createObserverFn("strong", "end-formatting");
 
         selectTextFn(editor);
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start-formatting");
-          boldObserver.observe(editor, { childList: true });
-          // .click() async, doesn't wait for selection
-          setTimeout(() => {
-            boldButton.click();
-          }, 0.5);
+          await boldButton.click();
+          performance.mark("end-formatting");
+          await boldButton.click();
 
           if (performance.mark("end-formatting")) {
             performance.measure(
@@ -519,19 +415,12 @@ test.describe("Lexical - user interaction tests", () => {
               .pop();
             if (!measure) return [];
             perfTimes.push(measure.duration);
-
-            // to clear format - might need a setTimeout here?
-            boldButton.click();
           }
         }
 
         return perfTimes;
       },
-      [
-        selectText.toString(),
-        simulatePaste.toString(),
-        createObserver.toString(),
-      ],
+      [selectText.toString()],
     );
 
     console.log(
@@ -539,10 +428,9 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  // TODO: get rid of setTimeouts
   test("formatting with keyboard shortcuts", async ({ page }) => {
     const shortcutActions = await page.evaluate(
-      ([simulatePasteFunction, createObserverFunction]) => {
+      async ([simulatePasteFunction]) => {
         const selectAllTimes: number[] = [];
         const boldTimes: number[] = [];
         const italicTimes: number[] = [];
@@ -556,15 +444,6 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-        const boldObserver = createObserverFn("strong", () => {
-          performance.mark("end-bold");
-        });
-        const italicObserver = createObserverFn("em", () => {
-          performance.mark("end-italic");
-        });
 
         // can't be moved to utils, it breaks
         function simulateShortcut(
@@ -589,35 +468,32 @@ test.describe("Lexical - user interaction tests", () => {
           editor.dispatchEvent(keyupEvent);
         }
 
-        simulatePasteFn("Trying out some shortcuts.  ".repeat(1000), editor);
+        await simulatePasteFn(
+          "Trying out some shortcuts.  ".repeat(1000),
+          editor,
+        );
 
         // 1. select all
-        for (let k = 0; k < 55; k++) {
+        for (let k = 0; k < 1000; k++) {
           performance.mark("start-select-all");
-          setTimeout(() => {
-            simulateShortcut(editor, "a", "KeyA", 65);
-          }, 0.5);
+          simulateShortcut(editor, "a", "KeyA", 65);
           performance.mark("end-select-all");
         }
 
         // 2. format to bold
-        for (let i = 0; i < 55; i++) {
+        // 3. undo bold format
+        for (let i = 0; i < 1000; i++) {
           performance.mark("start-bold");
-          // setTimeout(() => {
-          boldObserver.observe(editor, { childList: true });
           simulateShortcut(editor, "b", "KeyB", 66);
-          // }, 1);
+          performance.mark("end-bold");
+          simulateShortcut(editor, "b", "KeyB", 66);
         }
 
-        // 3. format to italic
-        if (performance.mark("end-bold")) {
-          for (let j = 0; j < 55; j++) {
-            performance.mark("start-italic");
-            setTimeout(() => {
-              italicObserver.observe(editor, { childList: true });
-              simulateShortcut(editor, "i", "KeyI", 73);
-            }, 1.5);
-          }
+        // 4. format to italic
+        for (let j = 0; j < 1000; j++) {
+          performance.mark("start-italic");
+          simulateShortcut(editor, "i", "KeyI", 73);
+          performance.mark("end-italic");
         }
 
         performance.measure("select-all", "start-select-all", "end-select-all");
@@ -632,40 +508,33 @@ test.describe("Lexical - user interaction tests", () => {
           };
         selectAllTimes.push(measureSelectAll.duration);
 
-        if (performance.mark("end-bold")) {
-          performance.measure("bold-format", "start-bold", "end-bold");
-          const measureBoldFormat = performance
-            .getEntriesByName("bold-format")
-            .pop();
-          if (!measureBoldFormat)
-            return {
-              selectAllTimes,
-              boldTimes: [1, 1, 1],
-              italicTimes,
-            };
-          boldTimes.push(measureBoldFormat.duration);
-        }
-        if (performance.mark("end-italic")) {
-          performance.measure("italic-format", "start-italic", "end-italic");
-          const measureItalicFormat = performance
-            .getEntriesByName("italic-format")
-            .pop();
-          if (!measureItalicFormat)
-            return {
-              selectAllTimes,
-              boldTimes,
-              italicTimes: [3, 3, 3],
-            };
-          italicTimes.push(measureItalicFormat.duration);
-        }
+        performance.measure("bold-format", "start-bold", "end-bold");
+        const measureBoldFormat = performance
+          .getEntriesByName("bold-format")
+          .pop();
+        if (!measureBoldFormat)
+          return {
+            selectAllTimes,
+            boldTimes: [1, 1, 1],
+            italicTimes,
+          };
+        boldTimes.push(measureBoldFormat.duration);
+
+        performance.measure("italic-format", "start-italic", "end-italic");
+        const measureItalicFormat = performance
+          .getEntriesByName("italic-format")
+          .pop();
+        if (!measureItalicFormat)
+          return {
+            selectAllTimes,
+            boldTimes,
+            italicTimes: [3, 3, 3],
+          };
+        italicTimes.push(measureItalicFormat.duration);
 
         return { selectAllTimes, boldTimes, italicTimes };
       },
-      [
-        simulatePaste.toString(),
-        createObserver.toString(),
-        selectText.toString(),
-      ],
+      [simulatePaste.toString()],
     );
 
     const { selectAllTimes, boldTimes, italicTimes } = shortcutActions;
@@ -675,7 +544,7 @@ test.describe("Lexical - user interaction tests", () => {
   });
 
   test("list: create performance", async ({ page, browser }) => {
-    const text = Array(3).fill("Lorem ipsum ");
+    const text = Array(50).fill("Lorem ipsum ");
 
     // join them with \n was not working as the editor interpreted it as a soft break
     // also can't use <br>, neither &nbsp;
@@ -685,7 +554,7 @@ test.describe("Lexical - user interaction tests", () => {
     }
 
     const createBulletList = await page.evaluate(
-      ([selectTextFunction, createObserverFunction]) => {
+      async ([selectTextFunction]) => {
         const createTimes = [];
 
         const editor = document.querySelector(
@@ -701,52 +570,43 @@ test.describe("Lexical - user interaction tests", () => {
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
         if (!undoButton) return [];
         const selectTextFn = new Function("return " + selectTextFunction)();
-        const createObserverFn = new Function(
-          "return " + createObserverFunction,
-        )();
-
-        const perfEndObserver = createObserverFn("ul", () => {
-          performance.mark("end-creating");
-        });
 
         selectTextFn(editor);
 
-        for (let i = 0; i < 11; i++) {
+        // I used setTimeout as I didn't want to make the selectTextFn to async
+        // but the .click() is async and doesn't wait for anyone
+        for (let i = 0; i < 1000; i++) {
           performance.mark("start-creating");
-          perfEndObserver.observe(editor, { childList: true });
-          setTimeout(() => {
+          await setTimeout(() => {
             bulletListButton.click();
           }, 0.5);
+          performance.mark("end-creating");
 
-          if (performance.mark("end-creating")) {
-            performance.measure(
-              "creating-list",
-              "start-creating",
-              "end-creating",
-            );
-            const measureListCreating = performance
-              .getEntriesByName("creating-list")
-              .pop();
-            if (!measureListCreating) return [];
-            createTimes.push(measureListCreating.duration);
-          }
+          performance.measure(
+            "creating-list",
+            "start-creating",
+            "end-creating",
+          );
+          const measureListCreating = performance
+            .getEntriesByName("creating-list")
+            .pop();
+          if (!measureListCreating) return [];
+          createTimes.push(measureListCreating.duration);
         }
 
         return createTimes;
       },
-      [
-        simulatePaste.toString(),
-        selectText.toString(),
-        createObserver.toString(),
-      ],
+      [selectText.toString()],
     );
     console.log(
       `Average duration of creating list: ${averageOf(createBulletList)}ms`,
     );
   });
 
-  // TODO: somehow undo the last line before the loop turns
   test("list: add item performance", async ({ page, browser }) => {
+    // it's not enough for the for loop i<1000
+    //   test.setTimeout(60000);
+
     const text = Array(3).fill("Lorem ipsum ");
     const ulButton = await page.waitForSelector(
       'button.toolbar__item:text("ul")',
@@ -757,7 +617,7 @@ test.describe("Lexical - user interaction tests", () => {
       await page.keyboard.press("Enter");
     }
     const addToBulletList = await page.evaluate(
-      ([simulatePasteFunction]) => {
+      async ([simulatePasteFunction]) => {
         const addingTimes = [];
         const editor = document.querySelector(".ContentEditable__root");
         if (!editor) return [];
@@ -768,16 +628,15 @@ test.describe("Lexical - user interaction tests", () => {
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
+        const newItem = "added item \n".split("");
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 100; i++) {
           performance.mark("start-adding");
-          "adding an item \n".split("").forEach((char) => {
-            simulatePasteFn(char, editor);
-          });
+          for (let char of newItem) {
+            await simulatePasteFn(char, editor);
+          }
           performance.mark("end-adding");
-          // can't undo it as the .click() is async and runs in diff speed than the loop
-          // cmd+z also doesn't work
-          // undoButton.click();
+          if (i < 99) await undoButton.click();
 
           performance.measure("adding-to-list", "start-adding", "end-adding");
           const measureListAdding = performance
@@ -797,8 +656,8 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  // TODO: 'type' into an arbitrary li - moveCaret?
-  // arrowUP doesn't work, backspace works one time, then Lexical throws error:
+  // TODO: 'type' into an arbitrary li - how to move the caret?
+  // arrowUP doesn't work, backspace works once, then Lexical throws error:
   // Error: Point.getNode: node not found - at Point.getNode (webpack-internal:///./node_modules/lexical/Lexical.dev.js:6064:15)
   test("list: modifying performance", async ({ page, browser }) => {
     const text = Array(3).fill("Lorem ipsum ");
@@ -810,15 +669,16 @@ test.describe("Lexical - user interaction tests", () => {
     for (let line of text) {
       await page.keyboard.insertText(`${line}`);
       await page.keyboard.press("Enter");
+      await page.keyboard.insertText("Lorem ipsum 2345678 ");
+      await page.keyboard.press("Enter");
     }
     const modifyBulletList = await page.evaluate(
-      ([simulatePasteFunction, selectTextFunction, simulateCutFunction]) => {
+      async ([simulatePasteFunction]) => {
         const modifyingTimes = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
-        const selectTextFn = new Function("return " + selectTextFunction)();
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
@@ -827,26 +687,15 @@ test.describe("Lexical - user interaction tests", () => {
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
         if (!undoButton) return [];
 
-        const moveCaret = (editor: HTMLElement, position: number) => {
-          const liElements = editor.querySelectorAll("li");
-          const pos = Math.min(liElements.length - 1, position);
-          const li = liElements[pos];
-          // TODO: how to move caret to pos?
-          " -item inserted- ".split("").forEach((char) => {
-            simulatePasteFn(char, editor);
-          });
-        };
+        const insertedItem = " -item inserted- ".split("");
 
-        selectTextFn(editor);
-
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 1; i++) {
           performance.mark("start-modifying");
-          moveCaret(editor, 1);
-          // " -item inserted- ".split("").forEach((char) => {
-          //   simulatePasteFn(char, editor);
-          // });
+          // for (let char of insertedItem) {
+          //   await simulatePasteFn(char, editor);
+          // }
           performance.mark("end-modifying");
-          // undoButton.click();
+          // await undoButton.click();
 
           performance.measure(
             "modifying-list",
@@ -861,7 +710,7 @@ test.describe("Lexical - user interaction tests", () => {
         }
         return modifyingTimes;
       },
-      [simulatePaste.toString(), selectText.toString()],
+      [simulatePaste.toString()],
     );
 
     console.log(
