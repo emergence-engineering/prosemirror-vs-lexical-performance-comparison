@@ -13,21 +13,26 @@ test.describe("Lexical - user interaction tests", () => {
   });
 
   test("input latency", async ({ page }) => {
+    test.setTimeout(70000);
+
     const typeText = await page.evaluate(
       async ([simulatePasteFunction]) => {
-        const perfTimes = [];
+        const perfTimes: number[] = [];
+        const chineseTextTimes: number[] = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
-        if (!editor) return [];
+        if (!editor) return { perfTimes, chineseTextTimes };
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
         )();
         const undoButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return [];
-        const textChars = "Testing typing performance".split("");
+        if (!undoButton) return { perfTimes, chineseTextTimes };
+
+        const textChars = "Typing".split("");
+        const chineseTextChars = "那不是杂志是".split("");
 
         for (let i = 0; i < 1000; i++) {
           performance.mark("start");
@@ -39,17 +44,36 @@ test.describe("Lexical - user interaction tests", () => {
           await undoButton.click();
         }
 
+        for (let j = 0; j < 1000; j++) {
+          performance.mark("start-chinese");
+          for (const char of chineseTextChars) {
+            await simulatePasteFn(char, editor);
+          }
+          performance.mark("end-chinese");
+          await undoButton.click();
+        }
+
         performance.measure("typing", "start", "end");
         const latency = performance.getEntriesByName("typing").pop();
-        if (!latency) return [];
+        if (!latency) return { perfTimes, chineseTextTimes };
         perfTimes.push(latency.duration);
 
-        return perfTimes;
+        performance.measure("typing-chinese", "start-chinese", "end-chinese");
+        const latencyChinese = performance
+          .getEntriesByName("typing-chinese")
+          .pop();
+        if (!latencyChinese) return { perfTimes, chineseTextTimes };
+        chineseTextTimes.push(latencyChinese.duration);
+
+        return { perfTimes, chineseTextTimes };
       },
       [simulatePaste.toString()],
     );
-
-    console.log(`Typing Performance: ${averageOf(typeText)}ms`);
+    const { perfTimes, chineseTextTimes } = typeText;
+    console.log(`Typing Performance: ${averageOf(perfTimes)}ms`);
+    console.log(
+      `Chinese text Typing Performance: ${averageOf(chineseTextTimes)}ms`,
+    );
   });
 
   test("typing performance at scale", async ({ page }) => {
@@ -385,15 +409,16 @@ test.describe("Lexical - user interaction tests", () => {
 
     const formatTextDuration = await page.evaluate(
       async ([selectTextFunction]) => {
-        const perfTimes = [];
+        const perfTimes: number[] = [];
+        const removingTimes: number[] = [];
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
-        if (!editor) return [];
+        if (!editor) return { perfTimes, removingTimes };
         const boldButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "B") as HTMLElement | null;
-        if (!boldButton) return [];
+        if (!boldButton) return { perfTimes, removingTimes };
         const selectTextFn = new Function("return " + selectTextFunction)();
 
         selectTextFn(editor);
@@ -402,29 +427,41 @@ test.describe("Lexical - user interaction tests", () => {
           performance.mark("start-formatting");
           await boldButton.click();
           performance.mark("end-formatting");
-          await boldButton.click();
 
-          if (performance.mark("end-formatting")) {
-            performance.measure(
-              "text-formatting",
-              "start-formatting",
-              "end-formatting",
-            );
-            const measure = performance
-              .getEntriesByName("text-formatting")
-              .pop();
-            if (!measure) return [];
-            perfTimes.push(measure.duration);
-          }
+          performance.mark("start-removing");
+          await boldButton.click();
+          performance.mark("end-removing");
+
+          performance.measure(
+            "text-formatting",
+            "start-formatting",
+            "end-formatting",
+          );
+          const measure = performance.getEntriesByName("text-formatting").pop();
+          if (!measure) return { perfTimes, removingTimes };
+          perfTimes.push(measure.duration);
+
+          performance.measure(
+            "remove-formatting",
+            "start-removing",
+            "end-removing",
+          );
+          const measureRemoving = performance
+            .getEntriesByName("remove-formatting")
+            .pop();
+          if (!measureRemoving) return { perfTimes, removingTimes };
+          removingTimes.push(measureRemoving.duration);
         }
 
-        return perfTimes;
+        return { perfTimes, removingTimes };
       },
       [selectText.toString()],
     );
 
+    const { perfTimes, removingTimes } = formatTextDuration;
+    console.log(`Average Text Formatting Duration: ${averageOf(perfTimes)}ms`);
     console.log(
-      `Average Text Formatting Duration: ${averageOf(formatTextDuration)}ms`,
+      `Average time of removing Text Formatting: ${averageOf(removingTimes)}ms`,
     );
   });
 
@@ -657,8 +694,10 @@ test.describe("Lexical - user interaction tests", () => {
   });
 
   // TODO: 'type' into an arbitrary li - how to move the caret?
+  // moving it with selection and range.setStart doesn't work
+  // doesn't find one list item (though finds it in the browser)
   // arrowUP doesn't work, backspace works once, then Lexical throws error:
-  // Error: Point.getNode: node not found - at Point.getNode (webpack-internal:///./node_modules/lexical/Lexical.dev.js:6064:15)
+  // // Error: Point.getNode: node not found - at Point.getNode (webpack-internal:///./node_modules/lexical/Lexical.dev.js:6064:15)
   test("list: modifying performance", async ({ page, browser }) => {
     const text = Array(3).fill("Lorem ipsum ");
     const ulButton = await page.waitForSelector(
@@ -687,15 +726,15 @@ test.describe("Lexical - user interaction tests", () => {
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
         if (!undoButton) return [];
 
-        const insertedItem = " -item inserted- ".split("");
+        const insertedItem = " item inserted ".split("");
 
         for (let i = 0; i < 1; i++) {
           performance.mark("start-modifying");
-          // for (let char of insertedItem) {
-          //   await simulatePasteFn(char, editor);
-          // }
+          for (let char of insertedItem) {
+            await simulatePasteFn(char, editor);
+          }
           performance.mark("end-modifying");
-          // await undoButton.click();
+          await undoButton.click();
 
           performance.measure(
             "modifying-list",
@@ -720,7 +759,4 @@ test.describe("Lexical - user interaction tests", () => {
   });
 });
 
-//
-// * Batch Formatting Removal: Remove formatting from large documents in one action and measure performance.
 // * Link Insertion and Editing: Test adding hyperlinks to text and editing existing links.
-// * Multi-Language Support: Type in different languages and scripts to see if there's any lag or issues with non-Latin characters.

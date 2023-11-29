@@ -1,7 +1,11 @@
 .editorwrapper{
     display: flex;
     justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    align-self: center;
     width: 100%;
+    color: black;
 }
 
 
@@ -349,3 +353,9 @@ img.ProseMirror-separator {
 }
 
 .ProseMirror p { margin-bottom: 1em }
+
+.ProseMirror a {
+    color: #0070f3;
+    text-decoration: underline;
+    cursor: pointer
+}

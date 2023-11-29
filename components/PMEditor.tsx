@@ -30,7 +30,9 @@ const PMEditor = () => {
   }, []);
 
   return (
-    <div className={"editorwrapper"}>
+    <div className={"editorwrapper--Lexical"}>
+      <br />
+      <h3>ProseMirror</h3>
       <div id={"editor"}></div>
     </div>
   );
