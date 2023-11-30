@@ -758,10 +758,10 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  // TODO:
-  // * Link Insertion and Editing: Test adding hyperlinks to text and editing existing links.
-  test("text selection performance", async ({ page, browser }) => {
+  // TODO: undo doesn't seem to work?
+  test("link performance", async ({ page, browser }) => {
     await page.keyboard.insertText("Label for the link");
+
     const linkPerformance = await page.evaluate(
       async ([selectTextFunction]) => {
         const perfTimes = [];
@@ -775,26 +775,54 @@ test.describe("Lexical - user interaction tests", () => {
         const linkButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "Link") as HTMLElement | null;
-
+        const linkInputField = document.querySelector(
+          ".modal__input",
+        ) as HTMLInputElement | null;
+        const submitButton = document.querySelector(
+          ".submit",
+        ) as HTMLElement | null;
         if (!undoButton || !linkButton) return [];
-
         const selectTextFn = new Function("return " + selectTextFunction)();
 
-        selectTextFn(editor);
+        // can't put it into the utils
+        const createObserver = (qs: string, doSomething: () => void) => {
+          return new MutationObserver((mutations, obs) => {
+            for (const mutation of mutations) {
+              if (mutation.type === "childList") {
+                const searchedElements =
+                  mutation.target.parentElement?.querySelectorAll(qs);
+                if (searchedElements && searchedElements.length > 0) {
+                  doSomething();
+                  obs.disconnect(); // Stop observing once the change is detected
+                  break;
+                }
+              }
+            }
+          });
+        };
 
-        for (let i = 0; i < 1; i++) {
+        selectTextFn(editor);
+        const linkObserver = createObserver("a[href]", () => {
+          performance.mark("end");
+        });
+
+        for (let i = 0; i < 1000; i++) {
+          linkObserver.observe(editor, { childList: true });
           performance.mark("start");
           await linkButton.click();
+          if (!linkInputField) return [];
+          linkInputField.value = "www.google.com";
+          if (!submitButton) return [];
+          await submitButton.click();
 
-          const linkhref = document
-            .querySelector("a.mylink")
-            ?.getAttribute("href");
-          performance.mark("end");
+          if (performance.mark("end")) {
+            await undoButton.click();
 
-          performance.measure("link", "start", "end");
-          const measureLink = performance.getEntriesByName("link").pop();
-          if (!measureLink) return [];
-          perfTimes.push(measureLink.duration);
+            performance.measure("link", "start", "end");
+            const measureLink = performance.getEntriesByName("link").pop();
+            if (!measureLink) return [];
+            perfTimes.push(measureLink.duration);
+          }
         }
 
         return perfTimes;
@@ -807,3 +835,10 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 });
+
+// code
+// mono
+// headings
+// hr
+// ol
+// img

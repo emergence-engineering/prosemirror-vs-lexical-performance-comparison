@@ -120,6 +120,7 @@ export const TextToLink = (): JSX.Element => {
         sanitizeUrl(inputRef.current.value),
       );
       setIsLink(true);
+      inputRef.current.value = "";
     },
     [editor, sanitizeUrl],
   );
@@ -137,7 +138,6 @@ export const TextToLink = (): JSX.Element => {
         <input
           className={"modal__input"}
           type={"text"}
-          placeholder={"http://"}
           ref={inputRef}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSubmit(e);

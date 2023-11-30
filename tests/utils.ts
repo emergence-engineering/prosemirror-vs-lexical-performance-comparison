@@ -56,21 +56,13 @@ export function simulateCut(element: any) {
   element.dispatchEvent(event);
 }
 
-export const createObserver = (
-  qs: string,
-  doSomething: () => void,
-  isDeleted?: boolean,
-) => {
+export const createObserver = (qs: string, doSomething: () => void) => {
   return new MutationObserver((mutations, obs) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
         const searchedElements =
           mutation.target.parentElement?.querySelectorAll(qs);
-
-        if (
-          (searchedElements && searchedElements.length > 0) ||
-          (isDeleted && !searchedElements)
-        ) {
+        if (searchedElements && searchedElements.length > 0) {
           doSomething();
           obs.disconnect(); // Stop observing once the change is detected
           break;
