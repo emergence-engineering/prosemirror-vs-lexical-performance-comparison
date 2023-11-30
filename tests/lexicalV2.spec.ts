@@ -757,6 +757,53 @@ test.describe("Lexical - user interaction tests", () => {
       averageOf(modifyBulletList),
     );
   });
-});
 
-// * Link Insertion and Editing: Test adding hyperlinks to text and editing existing links.
+  // TODO:
+  // * Link Insertion and Editing: Test adding hyperlinks to text and editing existing links.
+  test("text selection performance", async ({ page, browser }) => {
+    await page.keyboard.insertText("Label for the link");
+    const linkPerformance = await page.evaluate(
+      async ([selectTextFunction]) => {
+        const perfTimes = [];
+        const editor = document.querySelector(
+          ".ContentEditable__root",
+        ) as HTMLElement | null;
+        if (!editor) return [];
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        const linkButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "Link") as HTMLElement | null;
+
+        if (!undoButton || !linkButton) return [];
+
+        const selectTextFn = new Function("return " + selectTextFunction)();
+
+        selectTextFn(editor);
+
+        for (let i = 0; i < 1; i++) {
+          performance.mark("start");
+          await linkButton.click();
+
+          const linkhref = document
+            .querySelector("a.mylink")
+            ?.getAttribute("href");
+          performance.mark("end");
+
+          performance.measure("link", "start", "end");
+          const measureLink = performance.getEntriesByName("link").pop();
+          if (!measureLink) return [];
+          perfTimes.push(measureLink.duration);
+        }
+
+        return perfTimes;
+      },
+      [selectText.toString()],
+    );
+    console.log(
+      "Lexical Average Link Insertion Time:",
+      averageOf(linkPerformance),
+    );
+  });
+});

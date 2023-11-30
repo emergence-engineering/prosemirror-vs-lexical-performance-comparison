@@ -99,6 +99,47 @@ p, span {
     padding-left: 16px;
 }
 
+.modal__wrapper {
+    display: none;
+}
+
+.active {
+    padding: .5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: white;
+    border: thin solid black;
+    border-radius: 5px;
+    position: absolute;
+    z-index: 10;
+    top: 50%;
+}
+
+.modal__close {
+    align-self: flex-end;
+    cursor: pointer;
+    margin-bottom: -0.5rem;
+}
+
+.modal__label {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.modal__input {
+    border: thin solid black;
+    padding: 0 3px;
+}
+
+.submit{
+    padding: 0 0.3rem;
+    cursor: pointer;
+}
+
+
 /* original below */
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.

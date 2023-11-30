@@ -1,8 +1,6 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $createParagraphNode,
-  $createTextNode,
-  $getRoot,
   $getSelection,
   $isRangeSelection,
   FORMAT_TEXT_COMMAND,
@@ -12,7 +10,7 @@ import {
 import { $setBlocksType } from "@lexical/selection";
 import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
 import { TOGGLE_LINK_COMMAND } from "@lexical/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { INSERT_HORIZONTAL_RULE_COMMAND } from "@lexical/react/LexicalHorizontalRuleNode";
 import { $createCodeNode } from "@lexical/code";
 import {
@@ -94,22 +92,66 @@ export const TextToLink = (): JSX.Element => {
     return validUrl;
   }, []);
 
-  const linkOnClick = useCallback(async () => {
+  const [isActive, setIsActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef) {
+      inputRef.current?.focus();
+    }
+  }, [isActive]);
+
+  const linkOnClick = useCallback(() => {
     if (!isLink) {
-      const givenUrl = window.prompt("Enter a URL:");
-      if (!givenUrl) return;
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl(givenUrl));
-      setIsLink(true);
+      setIsActive(true);
     } else {
       editor.dispatchCommand(TOGGLE_LINK_COMMAND, "");
       setIsLink(false);
     }
-  }, [editor, isLink, sanitizeUrl]);
+  }, [editor, isLink]);
+
+  const handleSubmit = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent) => {
+      e.preventDefault();
+      setIsActive(false);
+      if (!inputRef.current) return;
+      editor.dispatchCommand(
+        TOGGLE_LINK_COMMAND,
+        sanitizeUrl(inputRef.current.value),
+      );
+      setIsLink(true);
+    },
+    [editor, sanitizeUrl],
+  );
 
   return (
-    <button className={"toolbar__item"} onClick={linkOnClick}>
-      Link
-    </button>
+    <>
+      <button className={"toolbar__item"} onClick={linkOnClick}>
+        Link
+      </button>
+      <div className={`modal__wrapper ${isActive ? "active" : ""}`}>
+        <div className={"modal__close"} onClick={() => setIsActive(false)}>
+          x
+        </div>
+        <label className={"modal__label"}>Link:</label>
+        <input
+          className={"modal__input"}
+          type={"text"}
+          placeholder={"http://"}
+          ref={inputRef}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSubmit(e);
+          }}
+        />
+        <button
+          className={"submit"}
+          type={"submit"}
+          onClick={(e) => handleSubmit(e)}
+        >
+          Submit
+        </button>
+      </div>
+    </>
   );
 };
 
