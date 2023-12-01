@@ -293,15 +293,20 @@ test.describe("Lexical - user interaction tests", () => {
       async ([simulatePasteFunction]) => {
         const perfTimes: number[] = [];
         const perfTimesChinese: number[] = [];
+        const hrTimes: number[] = [];
 
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
-        if (!editor) return { perfTimes, perfTimesChinese };
+        if (!editor) return { perfTimes, perfTimesChinese, hrTimes };
         const undoButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return { perfTimes, perfTimesChinese };
+        const hrButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "HR") as HTMLElement | null;
+        if (!undoButton || !hrButton)
+          return { perfTimes, perfTimesChinese, hrTimes };
 
         const simulatePasteFn = new Function(
           "return " + simulatePasteFunction,
@@ -318,7 +323,7 @@ test.describe("Lexical - user interaction tests", () => {
 
           performance.measure("paste", "start", "end");
           const pasteLatency = performance.getEntriesByName("paste").pop();
-          if (!pasteLatency) return { perfTimes, perfTimesChinese };
+          if (!pasteLatency) return { perfTimes, perfTimesChinese, hrTimes };
           perfTimes.push(pasteLatency.duration);
         }
 
@@ -335,21 +340,35 @@ test.describe("Lexical - user interaction tests", () => {
           const pasteChineseLatency = performance
             .getEntriesByName("paste-chinese")
             .pop();
-          if (!pasteChineseLatency) return { perfTimes, perfTimesChinese };
+          if (!pasteChineseLatency)
+            return { perfTimes, perfTimesChinese, hrTimes };
           perfTimesChinese.push(pasteChineseLatency.duration);
         }
 
-        return { perfTimes, perfTimesChinese };
+        for (let i = 0; i < 1000; i++) {
+          performance.mark("start-hr");
+          await hrButton.click();
+          performance.mark("end-hr");
+          await undoButton.click();
+
+          performance.measure("paste-hr", "start-hr", "end-hr");
+          const pasteHRLatency = performance.getEntriesByName("paste-hr").pop();
+          if (!pasteHRLatency) return { perfTimes, perfTimesChinese, hrTimes };
+          hrTimes.push(pasteHRLatency.duration);
+        }
+
+        return { perfTimes, perfTimesChinese, hrTimes };
       },
       [simulatePaste.toString()],
     );
-    const { perfTimes, perfTimesChinese } = pastePerf;
+    const { perfTimes, perfTimesChinese, hrTimes } = pastePerf;
     console.log(`Average Paste Operation Time: ${averageOf(perfTimes)}ms`);
     console.log(
       `Average Chinese Text Paste Operation Time: ${averageOf(
         perfTimesChinese,
       )}ms`,
     );
+    console.log(`Average HR Paste Operation Time: ${averageOf(hrTimes)}ms`);
   });
 
   test("text selection performance", async ({ page, browser }) => {
@@ -402,7 +421,7 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  test("formatting text performance", async ({ page, browser }) => {
+  test("bold formatting text performance", async ({ page, browser }) => {
     await page.keyboard.insertText(
       "This is a test for formatting large text. ".repeat(1000),
     );
@@ -462,6 +481,138 @@ test.describe("Lexical - user interaction tests", () => {
     console.log(`Average Text Formatting Duration: ${averageOf(perfTimes)}ms`);
     console.log(
       `Average time of removing Text Formatting: ${averageOf(removingTimes)}ms`,
+    );
+  });
+
+  // TODO: monospace
+  test("other formattings", async ({ page, browser }) => {
+    page.keyboard.insertText(
+      "This is a test for trying out the buttons on the Toolbar",
+    );
+
+    const formatTextDuration = await page.evaluate(
+      async ([selectTextFunction]) => {
+        const codeTimes: number[] = [];
+        const monoTimes: number[] = [];
+        const headingTimes: number[] = [];
+
+        const editor = document.querySelector(
+          ".ContentEditable__root",
+        ) as HTMLElement | null;
+        if (!editor) return { codeTimes, monoTimes, headingTimes };
+        const selectTextFn = new Function("return " + selectTextFunction)();
+
+        const createObserver = (qs: string, doSomething: () => void) => {
+          return new MutationObserver((mutations, obs) => {
+            console.log("1");
+            for (const mutation of mutations) {
+              console.log("2");
+              if (mutation.type === "childList") {
+                const searchedElements =
+                  mutation.target.parentElement?.querySelectorAll(qs);
+                console.log("s", searchedElements);
+
+                if (searchedElements && searchedElements.length > 0) {
+                  console.log("3");
+                  doSomething();
+                  obs.disconnect(); // Stop observing once the change is detected
+                  break;
+                }
+              }
+            }
+          });
+        };
+
+        const monoObserver = createObserver("code", () => {
+          performance.mark("end-mono");
+          console.log("??");
+        });
+        const codeObserver = createObserver("code[class='codeblock']", () => {
+          performance.mark("end-code");
+        });
+        const headingObserver = createObserver("h1", () => {
+          performance.mark("end-h1");
+        });
+
+        const codeButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find(
+          (button) => button.textContent === "CodeBlock",
+        ) as HTMLElement | null;
+        const monoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "mono") as HTMLElement | null;
+        const headingButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "h1") as HTMLElement | null;
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        if (!codeButton || !monoButton || !headingButton || !undoButton)
+          return { codeTimes, monoTimes, headingTimes };
+
+        selectTextFn(editor);
+
+        // codeblock
+        for (let i = 0; i < 1000; i++) {
+          codeObserver.observe(editor, { childList: true });
+          performance.mark("start-code");
+          await codeButton.click();
+
+          if (performance.mark("end-code")) {
+            await undoButton.click();
+            performance.measure("code", "start-code", "end-code");
+            const measureCode = performance.getEntriesByName("code").pop();
+            if (!measureCode)
+              return { codeTimes: [1, 1, 1], monoTimes, headingTimes };
+            codeTimes.push(measureCode.duration);
+          }
+        }
+
+        // ?? monospace ??
+        for (let j = 0; j < 1; j++) {
+          monoObserver.observe(editor, { childList: true });
+          performance.mark("start-mono");
+          await monoButton.click();
+
+          if (performance.mark("end-mono")) {
+            // await undoButton.click();
+            performance.measure("mono", "start-mono", "end-mono");
+            const measureMono = performance.getEntriesByName("mono").pop();
+            if (!measureMono)
+              return { codeTimes, monoTimes: [2, 2, 2], headingTimes };
+            console.log("m", measureMono.duration);
+            monoTimes.push(measureMono.duration);
+          }
+        }
+
+        // for (let k = 0; k < 1000; k++) {
+        headingObserver.observe(editor, { childList: true });
+        performance.mark("start-h1");
+        await headingButton.click();
+
+        if (performance.mark("end-h1")) {
+          await undoButton.click();
+          performance.measure("h1", "start-h1", "end-h1");
+          const measureH1 = performance.getEntriesByName("h1").pop();
+          if (!measureH1)
+            return { codeTimes, monoTimes, headingTimes: [3, 3, 3] };
+          headingTimes.push(measureH1.duration);
+        }
+
+        return { codeTimes, monoTimes, headingTimes };
+      },
+      [selectText.toString()],
+    );
+    const { codeTimes, monoTimes, headingTimes } = formatTextDuration;
+    console.log(
+      `Average Performance of Code Formatting: ${averageOf(codeTimes)}ms`,
+    );
+    console.log(
+      `Average Performance of Mono Formatting: ${averageOf(monoTimes)}ms`,
+    );
+    console.log(
+      `Average Performance of Heading Formatting: ${averageOf(headingTimes)}ms`,
     );
   });
 
@@ -580,7 +731,96 @@ test.describe("Lexical - user interaction tests", () => {
     console.log("Average duration of italic", averageOf(italicTimes));
   });
 
-  test("list: create performance", async ({ page, browser }) => {
+  // TODO: CDPSession teszt
+  test("link performance", async ({ page, browser }) => {
+    const session = await page.context().newCDPSession(page);
+    await session.send("Performance.enable");
+
+    await page.keyboard.insertText("Label for the link");
+
+    const linkPerformance = await page.evaluate(
+      async ([selectTextFunction]) => {
+        const perfTimes = [];
+        const editor = document.querySelector(
+          ".ContentEditable__root",
+        ) as HTMLElement | null;
+        if (!editor) return [];
+        const undoButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "undo") as HTMLElement | null;
+        const linkButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "Link") as HTMLElement | null;
+        const linkInputField = document.querySelector(
+          ".modal__input",
+        ) as HTMLInputElement | null;
+        const submitButton = document.querySelector(
+          ".submit",
+        ) as HTMLElement | null;
+        if (!undoButton || !linkButton) return [];
+        const selectTextFn = new Function("return " + selectTextFunction)();
+
+        // can't put it into the utils
+        const createObserver = (qs: string, doSomething: () => void) => {
+          return new MutationObserver((mutations, obs) => {
+            for (const mutation of mutations) {
+              if (mutation.type === "childList") {
+                const searchedElements =
+                  mutation.target.parentElement?.querySelectorAll(qs);
+                if (searchedElements && searchedElements.length > 0) {
+                  doSomething();
+                  obs.disconnect(); // Stop observing once the change is detected
+                  break;
+                }
+              }
+            }
+          });
+        };
+
+        selectTextFn(editor);
+        const linkObserver = createObserver("a[href]", () => {
+          performance.mark("end");
+        });
+        const undoObserver = createObserver("a[href]", () => {
+          console.log("not undone");
+        });
+
+        for (let i = 0; i < 1000; i++) {
+          linkObserver.observe(editor, { childList: true });
+          performance.mark("start");
+          await linkButton.click();
+          if (!linkInputField) return [];
+          linkInputField.value = "www.google.com";
+          if (!submitButton) return [];
+          await submitButton.click();
+
+          if (performance.mark("end")) {
+            await undoButton.click();
+
+            performance.measure("link", "start", "end");
+            const measureLink = performance.getEntriesByName("link").pop();
+            if (!measureLink) return [];
+            perfTimes.push(measureLink.duration);
+          }
+        }
+
+        return perfTimes;
+      },
+      [selectText.toString()],
+    );
+
+    let performanceMetrics = await session.send("Performance.getMetrics");
+    console.log("p", performanceMetrics.metrics);
+
+    console.log(
+      "Lexical Average Link Insertion Time:",
+      averageOf(linkPerformance),
+    );
+  });
+});
+test.describe("lists", () => {
+  // bullet list
+  test("ul: create performance", async ({ page, browser }) => {
     const text = Array(50).fill("Lorem ipsum ");
 
     // join them with \n was not working as the editor interpreted it as a soft break
@@ -758,87 +998,83 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  // TODO: undo doesn't seem to work?
-  test("link performance", async ({ page, browser }) => {
-    await page.keyboard.insertText("Label for the link");
+  // ordered list
+  test("ol: create performance", async ({ page, browser }) => {
+    const text = Array(50).fill("Lorem ipsum ");
 
-    const linkPerformance = await page.evaluate(
+    // join them with \n was not working as the editor interpreted it as a soft break
+    // also can't use <br>, neither &nbsp;
+    for (let line of text) {
+      await page.keyboard.insertText(`${line}`);
+      await page.keyboard.press("Enter");
+    }
+
+    const createOrderedList = await page.evaluate(
       async ([selectTextFunction]) => {
-        const perfTimes = [];
+        const createTimes = [];
+
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
+        const orderedListButton = Array.from(
+          document.querySelectorAll("button.toolbar__item"),
+        ).find((button) => button.textContent === "ol") as HTMLElement | null;
+        if (!orderedListButton) return [];
         const undoButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        const linkButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "Link") as HTMLElement | null;
-        const linkInputField = document.querySelector(
-          ".modal__input",
-        ) as HTMLInputElement | null;
-        const submitButton = document.querySelector(
-          ".submit",
-        ) as HTMLElement | null;
-        if (!undoButton || !linkButton) return [];
+        if (!undoButton) return [];
         const selectTextFn = new Function("return " + selectTextFunction)();
 
-        // can't put it into the utils
-        const createObserver = (qs: string, doSomething: () => void) => {
-          return new MutationObserver((mutations, obs) => {
-            for (const mutation of mutations) {
-              if (mutation.type === "childList") {
-                const searchedElements =
-                  mutation.target.parentElement?.querySelectorAll(qs);
-                if (searchedElements && searchedElements.length > 0) {
-                  doSomething();
-                  obs.disconnect(); // Stop observing once the change is detected
-                  break;
-                }
-              }
-            }
-          });
-        };
-
         selectTextFn(editor);
-        const linkObserver = createObserver("a[href]", () => {
-          performance.mark("end");
-        });
 
+        // I used setTimeout as I didn't want to make the selectTextFn to async
+        // but the .click() is async and doesn't wait for anyone
         for (let i = 0; i < 1000; i++) {
-          linkObserver.observe(editor, { childList: true });
-          performance.mark("start");
-          await linkButton.click();
-          if (!linkInputField) return [];
-          linkInputField.value = "www.google.com";
-          if (!submitButton) return [];
-          await submitButton.click();
+          performance.mark("start-creating");
+          await setTimeout(() => {
+            orderedListButton.click();
+          }, 0.5);
+          performance.mark("end-creating");
 
-          if (performance.mark("end")) {
-            await undoButton.click();
-
-            performance.measure("link", "start", "end");
-            const measureLink = performance.getEntriesByName("link").pop();
-            if (!measureLink) return [];
-            perfTimes.push(measureLink.duration);
-          }
+          performance.measure(
+            "creating-list",
+            "start-creating",
+            "end-creating",
+          );
+          const measureListCreating = performance
+            .getEntriesByName("creating-list")
+            .pop();
+          if (!measureListCreating) return [];
+          createTimes.push(measureListCreating.duration);
         }
 
-        return perfTimes;
+        return createTimes;
       },
       [selectText.toString()],
     );
     console.log(
-      "Lexical Average Link Insertion Time:",
-      averageOf(linkPerformance),
+      `Average duration of creating list: ${averageOf(createOrderedList)}ms`,
     );
   });
 });
 
-// code
-// mono
-// headings
-// hr
+test.describe("CDP Demo", () => {
+  test("Get performance metrics", async ({ page, browser }) => {
+    //Create a new connection to an existing CDP session to enable performance Metrics
+    const session = await page.context().newCDPSession(page);
+    //To tell the CDPsession to record performance metrics.
+    await session.send("Performance.enable");
+    await page.goto('http://localhost:3000/lexical"');
+    await page.waitForSelector(".ContentEditable__root");
+    await page.click(".ContentEditable__root");
+    await page.keyboard.type("this is a test");
+    console.log("=============CDP Performance Metrics===============");
+    let performanceMetrics = await session.send("Performance.getMetrics");
+    console.log(performanceMetrics.metrics);
+  });
+});
+
 // ol
-// img
+// bundle size, memory, latency, accessibility?

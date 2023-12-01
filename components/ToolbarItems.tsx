@@ -101,15 +101,6 @@ export const TextToLink = (): JSX.Element => {
     }
   }, [isActive]);
 
-  const linkOnClick = useCallback(() => {
-    if (!isLink) {
-      setIsActive(true);
-    } else {
-      editor.dispatchCommand(TOGGLE_LINK_COMMAND, "");
-      setIsLink(false);
-    }
-  }, [editor, isLink]);
-
   const handleSubmit = useCallback(
     (e: React.MouseEvent<HTMLButtonElement> | React.KeyboardEvent) => {
       e.preventDefault();
@@ -127,7 +118,7 @@ export const TextToLink = (): JSX.Element => {
 
   return (
     <>
-      <button className={"toolbar__item"} onClick={linkOnClick}>
+      <button className={"toolbar__item"} onClick={() => setIsActive(true)}>
         Link
       </button>
       <div className={`modal__wrapper ${isActive ? "active" : ""}`}>
