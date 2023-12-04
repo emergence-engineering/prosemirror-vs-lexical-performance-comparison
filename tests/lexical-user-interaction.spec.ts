@@ -1114,20 +1114,20 @@ test.describe("lists", () => {
   });
 });
 
-test.describe("CDP Demo", () => {
-  test("Get performance metrics", async ({ page, browser }) => {
-    //Create a new connection to an existing CDP session to enable performance Metrics
-    const session = await page.context().newCDPSession(page);
-    //To tell the CDPsession to record performance metrics.
-    await session.send("Performance.enable");
-    await page.goto('http://localhost:3000/lexical"');
-    await page.waitForSelector(".ContentEditable__root");
-    await page.click(".ContentEditable__root");
-    await page.keyboard.type("this is a test");
-    console.log("=============CDP Performance Metrics===============");
-    let performanceMetrics = await session.send("Performance.getMetrics");
-    console.log(performanceMetrics.metrics);
-  });
-});
+// test.describe("CDP Demo", () => {
+//   test("Get performance metrics", async ({ page, browser }) => {
+//     //Create a new connection to an existing CDP session to enable performance Metrics
+//     const session = await page.context().newCDPSession(page);
+//     //To tell the CDPsession to record performance metrics.
+//     await session.send("Performance.enable");
+//     await page.goto('http://localhost:3000/lexical"');
+//     await page.waitForSelector(".ContentEditable__root");
+//     await page.click(".ContentEditable__root");
+//     await page.keyboard.type("this is a test");
+//     console.log("=============CDP Performance Metrics===============");
+//     let performanceMetrics = await session.send("Performance.getMetrics");
+//     console.log(performanceMetrics.metrics);
+//   });
+// });
 
 // bundle size, memory, latency, accessibility?
