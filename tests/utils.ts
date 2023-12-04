@@ -18,7 +18,16 @@ export const averageOf = (perfTime: number[]) => {
   return perfTime.reduce((a, b) => a + b, 0) / perfTime.length;
 };
 
-export const selectText = (element: Element) => {
+// export const selectText = (element: Element) => {
+//   const selection = window.getSelection();
+//   if (!selection) return;
+//   const range = document.createRange();
+//   range.selectNodeContents(element);
+//   selection.removeAllRanges();
+//   selection.addRange(range);
+// };
+
+export const selectText = async (element: Element): Promise<void> => {
   const selection = window.getSelection();
   if (!selection) return;
   const range = document.createRange();
