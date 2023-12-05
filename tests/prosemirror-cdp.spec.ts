@@ -1,15 +1,12 @@
 import { test } from "@playwright/test";
 import {
-  averageOf,
   calcAverageMetrics,
   findEditor,
   Metric,
   relevantMetrics,
-  selectText,
 } from "./utils";
 import fs from "fs";
 import path from "path";
-import { TextSelection } from "prosemirror-state";
 
 test.describe("Prosemirror - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
@@ -199,65 +196,75 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 
-  test.only("ul: create performance", async ({ page, browser }) => {
-    const text = Array(50).fill("Lorem ipsum ");
+  // TODO: no click event
+  test.skip("ul: create performance", async ({ browser }) => {
+    const perfArray = [];
 
-    // join them with \n was not working as the editor interpreted it as a soft break
-    // also can't use <br>, neither &nbsp;
-    for (let line of text) {
-      await page.keyboard.insertText(`${line}`);
-      await page.keyboard.press("Enter");
-    }
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "div[contenteditable=true]");
+      const listText = Array(10).fill("bulletlist item ");
+      for (let line of listText) {
+        await page.keyboard.insertText(line);
+        await page.keyboard.press("Enter");
+      }
 
-    const createBulletList = await page.evaluate(
-      async ([selectTextFunction]) => {
-        const createTimes = [];
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
+      await page.evaluate(async () => {
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
-        const bulletListButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "ul") as HTMLElement | null;
+        const bulletListButton = document.querySelector(
+          'span.ProseMirror-menuitem > div.ProseMirror-icon[title="Wrap in bullet list"]',
+        ) as HTMLElement | null;
         if (!bulletListButton) return [];
-        const undoButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return [];
-        const selectTextFn = new Function("return " + selectTextFunction)();
 
-        selectTextFn(editor);
+        await bulletListButton.click();
+      });
+      const performanceMetrics = await session.send("Performance.getMetrics");
+      await session.detach();
+      await page.close();
 
-        // I used setTimeout as I didn't want to make the selectTextFn to async
-        // but the .click() is async and doesn't wait for anyone
-        for (let i = 0; i < 1000; i++) {
-          performance.mark("start-creating");
-          await setTimeout(() => {
-            bulletListButton.click();
-          }, 0.5);
-          performance.mark("end-creating");
+      const perfMetricsFiltered = performanceMetrics.metrics.filter(
+        (metric) => {
+          return relevantMetrics.includes(metric.name);
+        },
+      );
+      perfArray.push(...perfMetricsFiltered);
+      if (i % 5 === 0) console.log("ul", i);
+    }
+    const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
-          performance.measure(
-            "creating-list",
-            "start-creating",
-            "end-creating",
-          );
-          const measureListCreating = performance
-            .getEntriesByName("creating-list")
-            .pop();
-          if (!measureListCreating) return [];
-          createTimes.push(measureListCreating.duration);
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "05bulletlistPM.json"),
+      JSON.stringify(averagedPerfMetrics),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
         }
-
-        return createTimes;
+        console.log("Prosemirror, result is in: 05bulletlistPM.json");
       },
-      [selectText.toString()],
-    );
-    console.log(
-      `Average duration of creating bulletlist: ${averageOf(
-        createBulletList,
-      )}ms`,
     );
   });
 });
+
+// TODO JS heap size
+// TODO article
+// TODO diagram from json?
+
+// kell ul?
+// // ha igen, nem tudok click-elni (illetve ez kellene a user interaction tesztekhez is)
+// milyen perf parameterek kellenek
+// hany teszt? egybe menjen minden vagy kulon-kulon?
+// diagram: x event, y: metrics (one diagram or 4 diff?)
+// // x: find, write, paste, bold
+// // y: ?
