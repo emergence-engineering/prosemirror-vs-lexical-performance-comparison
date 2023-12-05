@@ -33,7 +33,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("findEditor", i + 1);
+      if (i % 5 === 0) console.log("findEditor", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -76,7 +76,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("typing", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -120,7 +120,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("typing", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -141,45 +141,32 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 
-  // TODO: selection is not working
-  test.only("bold formatting text performance", async ({ browser }) => {
+  test("bold formatting text performance", async ({ browser }) => {
     const perfArray = [];
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 30; i++) {
       const page = await browser.newPage();
       const session = await page.context().newCDPSession(page);
       await session.send("Performance.enable");
       await findEditor(page, "", "div[contenteditable=true]");
-      await page.keyboard.insertText("formatted text and ".repeat(10));
-      await page.keyboard.down("Control");
-      await page.keyboard.press("a");
-      await page.keyboard.up("Control");
+      await page.keyboard.insertText("formatted text and ".repeat(1000));
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
       await page.evaluate(async () => {
         const editor = document.querySelector(
           "div[contenteditable=true]",
         ) as HTMLElement | null;
-        const boldButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "B") as HTMLElement | null;
-        if (!boldButton || !editor) return;
+        if (!editor) return;
 
-        function simulateCtrlA(element: any) {
-          // Create a new KeyboardEvent
-          const event = new KeyboardEvent("keydown", {
-            key: "a",
-            ctrlKey: true, // Indicates the control key is pressed
-            bubbles: true, // Event bubbles up through the DOM
-          });
-
-          // Dispatch the event on the specified element
-          element.dispatchEvent(event);
-        }
-
-        simulateCtrlA(editor);
-        // setTimeout(() => {
-        //   boldButton.click();
-        // }, 10);
+        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+        const boldEvent = new KeyboardEvent("keydown", {
+          key: "b",
+          ctrlKey: !isMac, // Use Ctrl key for non-Mac systems
+          metaKey: isMac, // Use Command key (metaKey) for Mac systems
+          bubbles: true, // Event bubbles up through the DOM
+        });
+        editor.dispatchEvent(boldEvent);
       });
 
       const performanceMetrics = await session.send("Performance.getMetrics");
@@ -192,7 +179,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("bold", i + 1);
+      if (i % 5 === 0) console.log("bold", i);
     }
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
@@ -212,7 +199,7 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 
-  test("ul: create performance", async ({ page, browser }) => {
+  test.only("ul: create performance", async ({ page, browser }) => {
     const text = Array(50).fill("Lorem ipsum ");
 
     // join them with \n was not working as the editor interpreted it as a soft break

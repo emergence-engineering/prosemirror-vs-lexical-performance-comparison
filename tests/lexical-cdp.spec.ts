@@ -161,27 +161,15 @@ test.describe("Lexical - user interaction tests", () => {
       await session.send("Performance.enable");
       await findEditor(page, "lexical", ".ContentEditable__root");
       await page.keyboard.insertText("formatted text and ".repeat(1000));
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
       await page.evaluate(async () => {
-        const editor = document.querySelector(
-          ".ContentEditable__root",
-        ) as HTMLElement | null;
         const boldButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "B") as HTMLElement | null;
-        if (!boldButton || !editor) return;
+        if (!boldButton) return;
 
-        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-        const selectEvent = new KeyboardEvent("keydown", {
-          key: "A",
-          keyCode: 65, // keyCode for Backspace
-          code: "KeyA",
-          ctrlKey: !isMac,
-          metaKey: isMac, // Cmd key on Mac
-          bubbles: true,
-        });
-
-        editor.dispatchEvent(selectEvent);
         await boldButton.click();
       });
 
