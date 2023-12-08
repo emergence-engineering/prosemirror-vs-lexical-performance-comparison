@@ -6,21 +6,12 @@ import {
   Metric,
   relevantMetrics,
   selectText,
+  simulatePaste,
 } from "./utils";
 import fs from "fs";
 import path from "path";
 
-// find editor cdp
-// // for loop, average of metrics collected to a single file
-// one test, for loop for each, average of metrics
-// // write in the editor
-// // paste large text
-// // bold format of large text
-// // paste and make list from large text
-// diagram: x event, y: metrics (one diagram or 4 diff?)
-// // x: find, write, paste, bold, list;
-// // y: bundle size, memory, cpu usage, latency
-// article
+// stress test: do I need page.eval?
 
 test.describe("Lexical - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
@@ -44,7 +35,7 @@ test.describe("Lexical - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("findEditor", i);
+      if (i % 5 === 0) console.log("findEditor", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -61,6 +52,104 @@ test.describe("Lexical - user interaction tests", () => {
           return;
         }
         console.log("Lexical, result is in: 01findEditorL.json");
+      },
+    );
+  });
+
+  /*test("no-eval-stress test", async ({ browser }) => {
+    test.setTimeout(70000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "lexical", ".ContentEditable__root");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 500);
+
+      await page.keyboard.type("typing and ".repeat(3500));
+      // 1000 repeat: 8s
+      // 2000 repeat: 22s
+      // 2500 repeat: 32s
+      // 3000 repeat: > 40s
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "lexical-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "00stressL.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 00stressL.json");
+      },
+    );
+  });*/
+
+  test.only("eval-stress test", async ({ browser }) => {
+    test.setTimeout(400000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "lexical", ".ContentEditable__root");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        // perfArray.push(...performanceMetrics.metrics);
+
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 100);
+
+      await page.evaluate(async () => {
+        function delay(ms: number) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        const myt = "typing ".repeat(3000).split(" ");
+
+        for (let word of myt) {
+          document.execCommand("insertText", false, word);
+          await delay(2);
+        }
+      });
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "lexical-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "001stressL.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 001stressL.json");
       },
     );
   });
@@ -88,7 +177,7 @@ test.describe("Lexical - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("typing", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -132,7 +221,7 @@ test.describe("Lexical - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("paste", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -152,7 +241,7 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  test.only("bold formatting text performance", async ({ browser }) => {
+  test("bold formatting text performance", async ({ browser }) => {
     const perfArray = [];
 
     for (let i = 0; i < 30; i++) {
@@ -161,27 +250,15 @@ test.describe("Lexical - user interaction tests", () => {
       await session.send("Performance.enable");
       await findEditor(page, "lexical", ".ContentEditable__root");
       await page.keyboard.insertText("formatted text and ".repeat(1000));
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
       await page.evaluate(async () => {
-        const editor = document.querySelector(
-          ".ContentEditable__root",
-        ) as HTMLElement | null;
         const boldButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "B") as HTMLElement | null;
-        if (!boldButton || !editor) return;
+        if (!boldButton) return;
 
-        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-        const selectEvent = new KeyboardEvent("keydown", {
-          key: "A",
-          keyCode: 65, // keyCode for Backspace
-          code: "KeyA",
-          ctrlKey: !isMac,
-          metaKey: isMac, // Cmd key on Mac
-          bubbles: true,
-        });
-
-        editor.dispatchEvent(selectEvent);
         await boldButton.click();
       });
 
@@ -195,7 +272,7 @@ test.describe("Lexical - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("bold", i + 1);
+      if (i % 5 === 0) console.log("bold", i);
     }
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
@@ -214,67 +291,58 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  test("ul: create performance", async ({ page, browser }) => {
-    const text = Array(50).fill("Lorem ipsum ");
+  // as PM tests doesn't have it
+  test.skip("ul: create performance", async ({ browser }) => {
+    const perfArray = [];
 
-    // join them with \n was not working as the editor interpreted it as a soft break
-    // also can't use <br>, neither &nbsp;
-    for (let line of text) {
-      await page.keyboard.insertText(`${line}`);
-      await page.keyboard.press("Enter");
-    }
+    for (let i = 0; i < 30; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "lexical", ".ContentEditable__root");
+      const listText = Array(50).fill("bulletlist item ");
+      for (let line of listText) {
+        await page.keyboard.insertText(line);
+        await page.keyboard.press("Enter");
+      }
 
-    const createBulletList = await page.evaluate(
-      async ([selectTextFunction]) => {
-        const createTimes = [];
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
-        const editor = document.querySelector(
-          ".ContentEditable__root",
-        ) as HTMLElement | null;
-        if (!editor) return [];
+      await page.evaluate(async () => {
         const bulletListButton = Array.from(
           document.querySelectorAll("button.toolbar__item"),
         ).find((button) => button.textContent === "ul") as HTMLElement | null;
         if (!bulletListButton) return [];
-        const undoButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return [];
-        const selectTextFn = new Function("return " + selectTextFunction)();
 
-        selectTextFn(editor);
+        await bulletListButton.click();
+      });
+      const performanceMetrics = await session.send("Performance.getMetrics");
+      await session.detach();
+      await page.close();
 
-        // I used setTimeout as I didn't want to make the selectTextFn to async
-        // but the .click() is async and doesn't wait for anyone
-        for (let i = 0; i < 1000; i++) {
-          performance.mark("start-creating");
-          await setTimeout(() => {
-            bulletListButton.click();
-          }, 0.5);
-          performance.mark("end-creating");
+      const perfMetricsFiltered = performanceMetrics.metrics.filter(
+        (metric) => {
+          return relevantMetrics.includes(metric.name);
+        },
+      );
+      perfArray.push(...perfMetricsFiltered);
+      if (i % 5 === 0) console.log("ul", i);
+    }
+    const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
-          performance.measure(
-            "creating-list",
-            "start-creating",
-            "end-creating",
-          );
-          const measureListCreating = performance
-            .getEntriesByName("creating-list")
-            .pop();
-          if (!measureListCreating) return [];
-          createTimes.push(measureListCreating.duration);
+    const folderPath = path.join(__dirname, "lexical-tests");
+    fs.writeFile(
+      path.join(folderPath, "05bulletlistL.json"),
+      JSON.stringify(averagedPerfMetrics),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
         }
-
-        return createTimes;
+        console.log("Lexical, result is in: 05bulletlistL.json");
       },
-      [selectText.toString()],
-    );
-    console.log(
-      `Average duration of creating bulletlist: ${averageOf(
-        createBulletList,
-      )}ms`,
     );
   });
 });
-
-// bundle size, memory, latency, accessibility?

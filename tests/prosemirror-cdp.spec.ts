@@ -1,14 +1,21 @@
 import { test } from "@playwright/test";
 import {
-  averageOf,
   calcAverageMetrics,
   findEditor,
   Metric,
   relevantMetrics,
-  selectText,
 } from "./utils";
 import fs from "fs";
 import path from "path";
+
+// TODO
+// // stressz teszt
+// // minden parametert nezek eleinte, utana valogatok
+// // tobb teszt szorassal
+// // next.js bundle size?
+// // data saving and reordering
+
+// FIXME: 'typing' is not the same here and in the L, does it effect the result?
 
 test.describe("Prosemirror - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
@@ -32,7 +39,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("findEditor", i + 1);
+      if (i % 5 === 0) console.log("findEditor", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -48,6 +55,99 @@ test.describe("Prosemirror - user interaction tests", () => {
           return;
         }
         console.log("PM, result is in: 01findEditorPM.json");
+      },
+    );
+  });
+
+  /*test("no-eval-stress test", async ({ browser }) => {
+    test.setTimeout(70000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "#editor");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 500);
+
+      await page.keyboard.type("typing and ".repeat(500));
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "00stressPM.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 00stressPM.json");
+      },
+    );
+  }); */
+
+  test.only("eval-stress test", async ({ browser }) => {
+    test.setTimeout(400000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "#editor");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        // perfArray.push(...performanceMetrics.metrics);
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 100);
+
+      await page.evaluate(async () => {
+        function delay(ms: number) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        const myt = "typing ".repeat(3000).split(" ");
+
+        for (const word of myt) {
+          document.execCommand("insertText", false, word);
+          await delay(2);
+        }
+      });
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "001stressPM.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 001stressPM.json");
       },
     );
   });
@@ -75,7 +175,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("typing", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -119,7 +219,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("typing", i + 1);
+      if (i % 5 === 0) console.log("typing", i);
     }
 
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -140,36 +240,33 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 
-  // TODO: selection is not working
-  test.only("bold formatting text performance", async ({ browser }) => {
+  test("bold formatting text performance", async ({ browser }) => {
     const perfArray = [];
+    const perfArray2 = [];
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 30; i++) {
       const page = await browser.newPage();
       const session = await page.context().newCDPSession(page);
       await session.send("Performance.enable");
-      await findEditor(page, "", "#editor");
+      await findEditor(page, "", "div[contenteditable=true]");
       await page.keyboard.insertText("formatted text and ".repeat(1000));
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
       await page.evaluate(async () => {
-        const editor = document.querySelector("#editor") as HTMLElement | null;
-        const boldButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "B") as HTMLElement | null;
-        if (!boldButton || !editor) return;
+        const editor = document.querySelector(
+          "div[contenteditable=true]",
+        ) as HTMLElement | null;
+        if (!editor) return;
 
         const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-        const selectEvent = new KeyboardEvent("keydown", {
-          key: "A",
-          keyCode: 65, // keyCode for Backspace
-          code: "KeyA",
-          ctrlKey: !isMac,
-          metaKey: isMac, // Cmd key on Mac
-          bubbles: true,
+        const boldEvent = new KeyboardEvent("keydown", {
+          key: "b",
+          ctrlKey: !isMac, // Use Ctrl key for non-Mac systems
+          metaKey: isMac, // Use Command key (metaKey) for Mac systems
+          bubbles: true, // Event bubbles up through the DOM
         });
-
-        editor.dispatchEvent(selectEvent);
-        await boldButton.click();
+        editor.dispatchEvent(boldEvent);
       });
 
       const performanceMetrics = await session.send("Performance.getMetrics");
@@ -182,7 +279,8 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
-      if (i > 25) console.log("bold", i + 1);
+
+      if (i % 5 === 0) console.log("bold", i);
     }
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
@@ -202,65 +300,63 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 
-  test("ul: create performance", async ({ page, browser }) => {
-    const text = Array(50).fill("Lorem ipsum ");
+  // TODO: no click event
+  test.skip("ul: create performance", async ({ browser }) => {
+    const perfArray = [];
 
-    // join them with \n was not working as the editor interpreted it as a soft break
-    // also can't use <br>, neither &nbsp;
-    for (let line of text) {
-      await page.keyboard.insertText(`${line}`);
-      await page.keyboard.press("Enter");
-    }
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "div[contenteditable=true]");
+      const listText = Array(10).fill("bulletlist item ");
+      for (let line of listText) {
+        await page.keyboard.insertText(line);
+        await page.keyboard.press("Enter");
+      }
 
-    const createBulletList = await page.evaluate(
-      async ([selectTextFunction]) => {
-        const createTimes = [];
+      await page.keyboard.press("Control+A");
+      await page.keyboard.press("Meta+A");
 
+      await page.evaluate(async () => {
         const editor = document.querySelector(
           ".ContentEditable__root",
         ) as HTMLElement | null;
         if (!editor) return [];
-        const bulletListButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "ul") as HTMLElement | null;
+        const bulletListButton = document.querySelector(
+          'span.ProseMirror-menuitem > div.ProseMirror-icon[title="Wrap in bullet list"]',
+        ) as HTMLElement | null;
         if (!bulletListButton) return [];
-        const undoButton = Array.from(
-          document.querySelectorAll("button.toolbar__item"),
-        ).find((button) => button.textContent === "undo") as HTMLElement | null;
-        if (!undoButton) return [];
-        const selectTextFn = new Function("return " + selectTextFunction)();
 
-        selectTextFn(editor);
+        await bulletListButton.click();
+      });
+      const performanceMetrics = await session.send("Performance.getMetrics");
+      await session.detach();
+      await page.close();
 
-        // I used setTimeout as I didn't want to make the selectTextFn to async
-        // but the .click() is async and doesn't wait for anyone
-        for (let i = 0; i < 1000; i++) {
-          performance.mark("start-creating");
-          await setTimeout(() => {
-            bulletListButton.click();
-          }, 0.5);
-          performance.mark("end-creating");
+      const perfMetricsFiltered = performanceMetrics.metrics.filter(
+        (metric) => {
+          return relevantMetrics.includes(metric.name);
+        },
+      );
+      perfArray.push(...perfMetricsFiltered);
+      if (i % 5 === 0) console.log("ul", i);
+    }
+    const averagedPerfMetrics = calcAverageMetrics(perfArray);
 
-          performance.measure(
-            "creating-list",
-            "start-creating",
-            "end-creating",
-          );
-          const measureListCreating = performance
-            .getEntriesByName("creating-list")
-            .pop();
-          if (!measureListCreating) return [];
-          createTimes.push(measureListCreating.duration);
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "05bulletlistPM.json"),
+      JSON.stringify(averagedPerfMetrics),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
         }
-
-        return createTimes;
+        console.log("Prosemirror, result is in: 05bulletlistPM.json");
       },
-      [selectText.toString()],
-    );
-    console.log(
-      `Average duration of creating bulletlist: ${averageOf(
-        createBulletList,
-      )}ms`,
     );
   });
 });
