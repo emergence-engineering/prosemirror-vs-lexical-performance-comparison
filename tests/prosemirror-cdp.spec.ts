@@ -8,6 +8,15 @@ import {
 import fs from "fs";
 import path from "path";
 
+// TODO
+// // stressz teszt
+// // minden parametert nezek eleinte, utana valogatok
+// // tobb teszt szorassal
+// // next.js bundle size?
+// // data saving and reordering
+
+// FIXME: 'typing' is not the same here and in the L, does it effect the result?
+
 test.describe("Prosemirror - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
     const perfArray: Metric[] = [];
@@ -46,6 +55,99 @@ test.describe("Prosemirror - user interaction tests", () => {
           return;
         }
         console.log("PM, result is in: 01findEditorPM.json");
+      },
+    );
+  });
+
+  /*test("no-eval-stress test", async ({ browser }) => {
+    test.setTimeout(70000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "#editor");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 500);
+
+      await page.keyboard.type("typing and ".repeat(500));
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "00stressPM.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 00stressPM.json");
+      },
+    );
+  }); */
+
+  test.only("eval-stress test", async ({ browser }) => {
+    test.setTimeout(400000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "", "#editor");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        // perfArray.push(...performanceMetrics.metrics);
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 100);
+
+      await page.evaluate(async () => {
+        function delay(ms: number) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        const myt = "typing ".repeat(3000).split(" ");
+
+        for (const word of myt) {
+          document.execCommand("insertText", false, word);
+          await delay(2);
+        }
+      });
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "001stressPM.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 001stressPM.json");
       },
     );
   });
@@ -140,6 +242,7 @@ test.describe("Prosemirror - user interaction tests", () => {
 
   test("bold formatting text performance", async ({ browser }) => {
     const perfArray = [];
+    const perfArray2 = [];
 
     for (let i = 0; i < 30; i++) {
       const page = await browser.newPage();
@@ -176,6 +279,7 @@ test.describe("Prosemirror - user interaction tests", () => {
         },
       );
       perfArray.push(...perfMetricsFiltered);
+
       if (i % 5 === 0) console.log("bold", i);
     }
     const averagedPerfMetrics = calcAverageMetrics(perfArray);
@@ -256,15 +360,3 @@ test.describe("Prosemirror - user interaction tests", () => {
     );
   });
 });
-
-// TODO JS heap size
-// TODO article
-// TODO diagram from json?
-
-// kell ul?
-// // ha igen, nem tudok click-elni (illetve ez kellene a user interaction tesztekhez is)
-// milyen perf parameterek kellenek
-// hany teszt? egybe menjen minden vagy kulon-kulon?
-// diagram: x event, y: metrics (one diagram or 4 diff?)
-// // x: find, write, paste, bold
-// // y: ?

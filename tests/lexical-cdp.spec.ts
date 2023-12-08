@@ -6,21 +6,12 @@ import {
   Metric,
   relevantMetrics,
   selectText,
+  simulatePaste,
 } from "./utils";
 import fs from "fs";
 import path from "path";
 
-// find editor cdp
-// // for loop, average of metrics collected to a single file
-// one test, for loop for each, average of metrics
-// // write in the editor
-// // paste large text
-// // bold format of large text
-// // paste and make list from large text
-// diagram: x event, y: metrics (one diagram or 4 diff?)
-// // x: find, write, paste, bold, list;
-// // y: bundle size, memory, cpu usage, latency
-// article
+// stress test: do I need page.eval?
 
 test.describe("Lexical - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
@@ -61,6 +52,104 @@ test.describe("Lexical - user interaction tests", () => {
           return;
         }
         console.log("Lexical, result is in: 01findEditorL.json");
+      },
+    );
+  });
+
+  /*test("no-eval-stress test", async ({ browser }) => {
+    test.setTimeout(70000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "lexical", ".ContentEditable__root");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 500);
+
+      await page.keyboard.type("typing and ".repeat(3500));
+      // 1000 repeat: 8s
+      // 2000 repeat: 22s
+      // 2500 repeat: 32s
+      // 3000 repeat: > 40s
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "lexical-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "00stressL.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 00stressL.json");
+      },
+    );
+  });*/
+
+  test.only("eval-stress test", async ({ browser }) => {
+    test.setTimeout(400000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "lexical", ".ContentEditable__root");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        // perfArray.push(...performanceMetrics.metrics);
+
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 100);
+
+      await page.evaluate(async () => {
+        function delay(ms: number) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        const myt = "typing ".repeat(3000).split(" ");
+
+        for (let word of myt) {
+          document.execCommand("insertText", false, word);
+          await delay(2);
+        }
+      });
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "lexical-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "001stressL.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 001stressL.json");
       },
     );
   });
@@ -202,7 +291,8 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });
 
-  test("ul: create performance", async ({ browser }) => {
+  // as PM tests doesn't have it
+  test.skip("ul: create performance", async ({ browser }) => {
     const perfArray = [];
 
     for (let i = 0; i < 30; i++) {
