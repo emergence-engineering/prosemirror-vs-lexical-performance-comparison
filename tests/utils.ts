@@ -37,7 +37,11 @@ export const selectText = async (element: Element): Promise<void> => {
 };
 
 // I had to turn this to async as using a pasteObserver was not enough for some tests
-export async function simulatePaste(text: string, element: any): Promise<void> {
+export async function simulatePaste(
+  text: string,
+  element: any,
+  delay?: number,
+): Promise<void> {
   return new Promise((resolve) => {
     const event = new Event("paste", {
       bubbles: true,
@@ -53,9 +57,12 @@ export async function simulatePaste(text: string, element: any): Promise<void> {
       },
     };
     element.dispatchEvent(event);
-    setTimeout(() => {
-      resolve();
-    }, 0);
+    setTimeout(
+      () => {
+        resolve();
+      },
+      delay ? delay : 0,
+    );
   });
 }
 
@@ -114,10 +121,13 @@ export function calcAverageMetrics(perfArray: Metric[]) {
 }
 
 export const relevantMetrics = [
-  "Timestamp",
+  // "LayoutCount",
+  // "DevToolsCommandDuration",
+  // "ScriptDuration",
+  // "TaskDuration",
+  // "TaskOtherDuration",
+  // "ThreadTime",
+  // "ProcessTime",
   "JSHeapUsedSize",
-  "JSHeapTotalSize",
-  "Resources",
-  "Nodes",
-  "LayoutObjects",
+  // "JSHeapTotalSize",
 ];
