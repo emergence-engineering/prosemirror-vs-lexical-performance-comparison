@@ -123,11 +123,11 @@ export function calcAverageMetrics(perfArray: Metric[]) {
 export const relevantMetrics = [
   // "LayoutCount",
   // "DevToolsCommandDuration",
-  // "ScriptDuration",
+  "ScriptDuration",
   // "TaskDuration",
   // "TaskOtherDuration",
   // "ThreadTime",
   // "ProcessTime",
-  "JSHeapUsedSize",
+  // "JSHeapUsedSize",
   // "JSHeapTotalSize",
 ];

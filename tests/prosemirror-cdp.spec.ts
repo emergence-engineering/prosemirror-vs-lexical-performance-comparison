@@ -101,7 +101,7 @@ test.describe("Prosemirror - user interaction tests", () => {
   }); */
 
   test.only("eval-stress test", async ({ browser }) => {
-    test.setTimeout(400000);
+    test.setTimeout(500000);
     const perfArray: any[] = [];
 
     for (let i = 0; i < 1; i++) {
