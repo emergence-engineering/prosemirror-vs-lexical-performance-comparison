@@ -12,7 +12,6 @@ import fs from "fs";
 import path from "path";
 
 // stress test: do I need page.eval?
-
 test.describe("Lexical - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
     const perfArray: Metric[] = [];
@@ -102,7 +101,7 @@ test.describe("Lexical - user interaction tests", () => {
   });*/
 
   test.only("eval-stress test", async ({ browser }) => {
-    test.setTimeout(500000);
+    test.setTimeout(10000000);
     const perfArray: any[] = [];
 
     for (let i = 0; i < 1; i++) {
@@ -119,17 +118,22 @@ test.describe("Lexical - user interaction tests", () => {
           (metric) => relevantMetrics.includes(metric.name),
         );
         perfArray.push(...perfMetricsFiltered);
-      }, 100);
+      }, 5000);
 
       await page.evaluate(async () => {
         function delay(ms: number) {
           return new Promise((resolve) => setTimeout(resolve, ms));
         }
-        const myt = "typing ".repeat(3000).split(" ");
+        const myt = "typing ".repeat(60500).split(" ");
 
-        for (let word of myt) {
-          document.execCommand("insertText", false, word);
+        // for (let word of myt) {
+        for (let i = 0; i < 60500; i++) {
+          document.execCommand("insertText", false, myt[i]);
           await delay(2);
+          if (i % 10000 === 0) {
+            const time = new Date().toLocaleTimeString();
+            console.log(i, time);
+          }
         }
       });
 

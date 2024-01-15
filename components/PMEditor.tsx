@@ -16,6 +16,9 @@ const PMEditor = () => {
     const view = new EditorView(
       document.querySelector("#editor") as HTMLElement,
       {
+        attributes: {
+          spellcheck: "false",
+        },
         state: EditorState.create({
           doc: DOMParser.fromSchema(mySchema).parse(
             document.createElement("div"),
