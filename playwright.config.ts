@@ -28,9 +28,7 @@ export default defineConfig({
     // launchOptions: {
     //   slowMo: 1000,
     // },
-    // headless: true,
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    // baseURL: 'http://127.0.0.1:3000',
+    headless: true,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",

@@ -101,7 +101,7 @@ test.describe("Prosemirror - user interaction tests", () => {
   }); */
 
   test.only("eval-stress test", async ({ browser }) => {
-    test.setTimeout(500000);
+    test.setTimeout(10000000);
     const perfArray: any[] = [];
 
     for (let i = 0; i < 1; i++) {
@@ -117,17 +117,22 @@ test.describe("Prosemirror - user interaction tests", () => {
           (metric) => relevantMetrics.includes(metric.name),
         );
         perfArray.push(...perfMetricsFiltered);
-      }, 100);
+      }, 5000);
 
       await page.evaluate(async () => {
         function delay(ms: number) {
           return new Promise((resolve) => setTimeout(resolve, ms));
         }
-        const myt = "typing ".repeat(3000).split(" ");
+        const myt = "typing ".repeat(60500).split(" ");
 
-        for (const word of myt) {
-          document.execCommand("insertText", false, word);
+        // for (const word of myt) {
+        for (let i = 0; i < 60500; i++) {
+          document.execCommand("insertText", false, myt[i]);
           await delay(2);
+          if (i % 10000 === 0 || (i > 50000 && i % 1000 === 0)) {
+            const time = new Date().toLocaleTimeString();
+            console.log(i, time);
+          }
         }
       });
 
@@ -151,6 +156,65 @@ test.describe("Prosemirror - user interaction tests", () => {
       },
     );
   });
+
+  /* test("BASIC eval-stress test", async ({ browser }) => {
+    test.setTimeout(10000000);
+    const perfArray: any[] = [];
+
+    for (let i = 0; i < 1; i++) {
+      const page = await browser.newPage();
+      const session = await page.context().newCDPSession(page);
+      await session.send("Performance.enable");
+      await findEditor(page, "basic", "#basicEditor");
+
+      const interval = setInterval(async () => {
+        const performanceMetrics = await session.send("Performance.getMetrics");
+        // perfArray.push(...performanceMetrics.metrics);
+        const perfMetricsFiltered = performanceMetrics.metrics.filter(
+          (metric) => relevantMetrics.includes(metric.name),
+        );
+        perfArray.push(...perfMetricsFiltered);
+      }, 5000);
+
+      await page.evaluate(async () => {
+        function delay(ms: number) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+        const myt = "typing ".repeat(90000).split(" ");
+
+        // for (const word of myt) {
+        for (let i = 0; i < 90000; i++) {
+          document.execCommand("insertText", false, myt[i]);
+          await delay(2);
+          if (i % 10000 === 0 || (i > 80000 && i % 1000 === 0)) {
+            const time = new Date().toLocaleTimeString();
+            console.log(i, time);
+          }
+        }
+      });
+
+      await session.detach();
+      await page.close();
+      clearInterval(interval);
+    }
+
+    const folderPath = path.join(__dirname, "pm-tests");
+
+    fs.writeFile(
+      path.join(folderPath, "001stressB.json"),
+      JSON.stringify(perfArray),
+      "utf8",
+      (err) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        console.log("Lexical, result is in: 001stressB.json");
+      },
+    );
+  });
+
+   */
 
   test("input latency", async ({ browser }) => {
     const perfArray = [];
