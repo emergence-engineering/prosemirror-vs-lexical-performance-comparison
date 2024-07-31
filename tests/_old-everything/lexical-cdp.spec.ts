@@ -2,6 +2,7 @@ import { test } from "@playwright/test";
 import {
   averageOf,
   calcAverageMetrics,
+  delay,
   findEditor,
   Metric,
   relevantMetrics,
@@ -11,7 +12,6 @@ import {
 import fs from "fs";
 import path from "path";
 
-// stress test: do I need page.eval?
 test.describe("Lexical - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
     const perfArray: Metric[] = [];
@@ -100,7 +100,7 @@ test.describe("Lexical - user interaction tests", () => {
     );
   });*/
 
-  test.only("eval-stress test", async ({ browser }) => {
+  test("eval-stress test", async ({ browser }) => {
     test.setTimeout(10000000);
     const perfArray: any[] = [];
 
@@ -110,6 +110,7 @@ test.describe("Lexical - user interaction tests", () => {
       await session.send("Performance.enable");
       await findEditor(page, "lexical", ".ContentEditable__root");
 
+      // measure metrics
       const interval = setInterval(async () => {
         const performanceMetrics = await session.send("Performance.getMetrics");
         // perfArray.push(...performanceMetrics.metrics);
@@ -120,20 +121,18 @@ test.describe("Lexical - user interaction tests", () => {
         perfArray.push(...perfMetricsFiltered);
       }, 5000);
 
+      // test itself
       await page.evaluate(async () => {
-        function delay(ms: number) {
-          return new Promise((resolve) => setTimeout(resolve, ms));
-        }
         const myt = "typing ".repeat(60500).split(" ");
 
-        // for (let word of myt) {
         for (let i = 0; i < 60500; i++) {
           document.execCommand("insertText", false, myt[i]);
           await delay(2);
-          if (i % 10000 === 0) {
-            const time = new Date().toLocaleTimeString();
-            console.log(i, time);
-          }
+          // feedback of where am I
+          // if (i % 10000 === 0) {
+          //   const time = new Date().toLocaleTimeString();
+          //   console.log(i, time);
+          // }
         }
       });
 
@@ -145,7 +144,7 @@ test.describe("Lexical - user interaction tests", () => {
     const folderPath = path.join(__dirname, "lexical-tests");
 
     fs.writeFile(
-      path.join(folderPath, "001stressL.json"),
+      path.join(folderPath, "stressL.json"),
       JSON.stringify(perfArray),
       "utf8",
       (err) => {
@@ -153,7 +152,7 @@ test.describe("Lexical - user interaction tests", () => {
           console.error(err);
           return;
         }
-        console.log("Lexical, result is in: 001stressL.json");
+        console.log("Lexical, result is in: stressL.json");
       },
     );
   });
