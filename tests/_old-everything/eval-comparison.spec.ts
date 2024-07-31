@@ -6,6 +6,7 @@ const averageOf = (perfTime: number[]) => {
 
 test.describe("Who wins?", () => {
   test("Torcsi", async ({ page }) => {
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!");
     await page.goto("http://localhost:3000/lexical");
     const perfTimeCollection: number[][] = [];
 

@@ -35,9 +35,9 @@ test.describe("ProseMirror editor performance tests", () => {
 
     const memoryUsage = await page.evaluate(() => {
       // This is non-standard and may not be available in all browsers/environments
-      if (performance.memory) {
-        return performance.memory.usedJSHeapSize;
-      }
+      // if (performance.memory || performance.) {
+      //   return performance.memory.usedJSHeapSize;
+      // }
       return null;
     });
 

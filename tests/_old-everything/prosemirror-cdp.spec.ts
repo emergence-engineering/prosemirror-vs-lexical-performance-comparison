@@ -8,15 +8,6 @@ import {
 import fs from "fs";
 import path from "path";
 
-// TODO
-// // stressz teszt
-// // minden parametert nezek eleinte, utana valogatok
-// // tobb teszt szorassal
-// // next.js bundle size?
-// // data saving and reordering
-
-// FIXME: 'typing' is not the same here and in the L, does it effect the result?
-
 test.describe("Prosemirror - user interaction tests", () => {
   test("find editor", async ({ browser }) => {
     const perfArray: Metric[] = [];
@@ -144,7 +135,7 @@ test.describe("Prosemirror - user interaction tests", () => {
     const folderPath = path.join(__dirname, "pm-tests");
 
     fs.writeFile(
-      path.join(folderPath, "001stressPM.json"),
+      path.join(folderPath, "stressPM.json"),
       JSON.stringify(perfArray),
       "utf8",
       (err) => {
@@ -152,7 +143,7 @@ test.describe("Prosemirror - user interaction tests", () => {
           console.error(err);
           return;
         }
-        console.log("Lexical, result is in: 001stressPM.json");
+        console.log("Lexical, result is in: stressPM.json");
       },
     );
   });

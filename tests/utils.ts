@@ -1,4 +1,6 @@
-import { Page } from "@playwright/test";
+import { Browser, Page } from "@playwright/test";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $createParagraphNode, $getRoot, $getSelection } from "lexical";
 
 export const findEditor = async (page: Page, editor: string, qs: string) => {
   await page.goto(`http://localhost:3000/${editor}`);
@@ -8,7 +10,7 @@ export const findEditor = async (page: Page, editor: string, qs: string) => {
     if (consoleMessage.type() === "error") return;
     console.log(
       `${
-        editor === "" ? "PM" : "Lexical"
+        editor === " " ? "PM" : "Lexical"
       }, browser console: \n${consoleMessage.text()}`,
     );
   });
@@ -120,14 +122,19 @@ export function calcAverageMetrics(perfArray: Metric[]) {
   });
 }
 
+export function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const relevantMetrics = [
-  // "ThreadTime",
-  // "JSHeapUsedSize",
-  "JSHeapTotalSize",
   // "ScriptDuration",
-  // "TaskDuration",
-  // "TaskOtherDuration",
+  // "JSHeapUsedSize",
   // "ProcessTime",
   // "LayoutCount",
+  // //
+  "ThreadTime",
+  // "JSHeapTotalSize",
+  // "TaskDuration",
+  // "TaskOtherDuration",
   // "DevToolsCommandDuration",
 ];

@@ -5,7 +5,7 @@ import {
   findEditor,
   selectText,
   simulatePaste,
-} from "./utils";
+} from "../utils";
 
 test.describe("Lexical - user interaction tests", () => {
   test.beforeEach(async ({ page, browser }) => {
