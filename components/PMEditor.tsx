@@ -5,11 +5,30 @@ import { schema } from "prosemirror-schema-basic";
 import { addListNodes } from "prosemirror-schema-list";
 import { exampleSetup } from "prosemirror-example-setup";
 import { useEffect } from "react";
+import { Plugin } from "prosemirror-state";
 
 const mySchema = new Schema({
   nodes: addListNodes(schema.spec.nodes, "paragraph block*", "block"),
   marks: schema.spec.marks,
 });
+
+function autoHeightPlugin() {
+  return new Plugin({
+    view(editorView) {
+      const updateHeight = () => {
+        const editorElement = editorView.dom;
+        editorElement.style.height = "auto"; // Reset the height to auto to calculate new height
+        editorElement.style.height = editorElement.scrollHeight + "px"; // Set height based on scrollHeight
+      };
+
+      updateHeight(); // Initial update
+
+      return {
+        update: updateHeight, // Update on each transaction
+      };
+    },
+  });
+}
 
 const PMEditor = () => {
   useEffect(() => {
@@ -23,52 +42,19 @@ const PMEditor = () => {
           doc: DOMParser.fromSchema(mySchema).parse(
             document.createElement("div"),
           ),
-          plugins: exampleSetup({ schema: mySchema }),
+          plugins: [...exampleSetup({ schema: mySchema }), autoHeightPlugin()],
         }),
       },
     );
-
-    const logInnerHTML = () => {
-      console.log(view.dom.innerHTML);
-    };
-
-    const logButton = document.querySelector(".logB");
-    if (logButton) {
-      logButton.addEventListener("click", logInnerHTML);
-    }
-
-    const enter = () => {
-      const event = new KeyboardEvent("keydown", {
-        key: "Enter",
-        bubbles: true,
-      });
-      view.dom.dispatchEvent(event);
-    };
-
-    const enterButton = document.querySelector(".enterB");
-    if (enterButton) {
-      enterButton.addEventListener("click", enter);
-    }
-
     return () => {
-      if (enterButton) {
-        enterButton.removeEventListener("click", enter);
-      }
-      if (logButton) {
-        logButton.removeEventListener("click", logInnerHTML);
-      }
       view.destroy();
     };
   }, []);
 
   return (
-    <>
-      <div className={"editorwrapper"}>
-        <div id={"editor"}></div>
-      </div>
-      <button className="logB">Log HTML</button>
-      <button className="enterB">Enter</button>
-    </>
+    <div className={"editorwrapper"}>
+      <div id={"editor"}></div>
+    </div>
   );
 };
 

@@ -19,9 +19,6 @@ const Header = () => {
         <div className={"navbar__nav"}>
           <Link href={"/lexical"}>Lexical</Link>
         </div>
-        <div className={"navbar__nav"}>
-          <Link href={"/basic"}>Basic</Link>
-        </div>
       </div>
     </div>
   );
