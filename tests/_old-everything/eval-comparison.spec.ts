@@ -5,8 +5,7 @@ const averageOf = (perfTime: number[]) => {
 };
 
 test.describe("Who wins?", () => {
-  test("Torcsi", async ({ page }) => {
-    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  test("everything in one eval", async ({ page }) => {
     await page.goto("http://localhost:3000/lexical");
     const perfTimeCollection: number[][] = [];
 
@@ -18,14 +17,15 @@ test.describe("Who wins?", () => {
         window.performance.mark("hellow1:start");
 
         const text = "Hello World";
-        text.split("").forEach((char) => {
+        for (const char of text) {
           const event = new KeyboardEvent("keydown", {
             key: char,
             code: `Key${char.toUpperCase()}`,
             charCode: char.charCodeAt(0),
           });
           editor.dispatchEvent(event);
-        });
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
 
         window.performance.mark("hellow1:stop");
 
@@ -63,7 +63,7 @@ test.describe("Who wins?", () => {
     console.log("1eval, type hellow", averageOf(perfTimes));
   });
 
-  test("the world", async ({ page }) => {
+  test("seperate evals", async ({ page }) => {
     // test.setTimeout(60000);
     await page.goto("http://localhost:3000/lexical");
     const perfTimeCollection: number[][] = [];
@@ -72,7 +72,7 @@ test.describe("Who wins?", () => {
       await page.click(".ContentEditable__root");
 
       await page.evaluate(() => window.performance.mark("perf:start"));
-      await page.keyboard.type("Hello, World!");
+      await page.keyboard.type("Hello World", { delay: 10 });
       await page.evaluate(() => window.performance.mark("perf:stop"));
 
       await page.evaluate(() =>

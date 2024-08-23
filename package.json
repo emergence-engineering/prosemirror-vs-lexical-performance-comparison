@@ -11,7 +11,8 @@
     "lint": "next lint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:slow": "playwright test --project chromium --headed"
+    "test:slow": "playwright test --project chromium --headed",
+    "processTrace": "ts-node-dev --project ./tsconfig.json ./tests/processTrace.ts"
   },
   "dependencies": {
     "@lexical/link": "^0.12.2",
@@ -39,6 +40,8 @@
   "devDependencies": {
     "@next/bundle-analyzer": "^14.0.1",
     "@playwright/test": "^1.39.0",
-    "prettier": "^3.0.3"
+    "nodemon": "^3.0.2",
+    "prettier": "^3.0.3",
+    "ts-node-dev": "^2.0.0"
   }
 }

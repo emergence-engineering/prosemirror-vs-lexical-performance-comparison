@@ -3,15 +3,20 @@ import { findEditor, relevantMetrics } from "./utils";
 import fs from "fs";
 import path from "path";
 import { Protocol } from "playwright-core/types/protocol";
-import { MEASUREMENT_INTERVAL, REPEATS } from "./lexical-stress.spec";
 
-const nodeCountFilename = "PM-nodecount.json";
-const profileFilename = "PM-trace.json";
-let nodeCount: number;
+// NOTES
+// 6000 repeat (1000ms interval) 8 mins
+// 3000 repeats (500ms) 1min40s
 
-const nodeCountMetrics: number[] = [];
+// how long do they run before getting jerky
+const REPEATS = 9000000;
+const MEASUREMENT_INTERVAL = 15000;
+const filename = "stressPM.json";
+let wordcount: number;
+
+const perfArray: Protocol.Performance.Metric[] = [];
 let page: Page;
-let nodecountInterval: NodeJS.Timeout;
+let interval: NodeJS.Timeout;
 let session: CDPSession;
 
 test.beforeAll(async ({ browser }) => {
@@ -20,40 +25,36 @@ test.beforeAll(async ({ browser }) => {
   await session.send("Performance.enable");
   await findEditor(page, "", "#editor");
 
-  nodecountInterval = setInterval(async () => {
-    nodeCountMetrics.push(nodeCount);
+  interval = setInterval(async () => {
+    const performanceMetrics = await session.send("Performance.getMetrics");
+    const perfMetricsFiltered = performanceMetrics.metrics.filter((metric) =>
+      relevantMetrics.includes(metric.name),
+    );
+    perfArray.push(...perfMetricsFiltered);
   }, MEASUREMENT_INTERVAL);
 
   const time = new Date().toLocaleTimeString();
   console.log("PM test STARTS at", time);
-
-  await browser.startTracing(page, {
-    path: profileFilename,
-    screenshots: true,
-  });
 });
 
-test.afterAll(async ({ browser }) => {
-  await browser.stopTracing().then(() => console.log("PM-trace file is ready"));
-
-  await page.evaluate(() => window.performance.mark("perf:stop"));
-  clearInterval(nodecountInterval);
-
+test.afterAll(async () => {
+  // await session.detach();
+  clearInterval(interval);
   const folderPath = path.join(__dirname, "pm-results");
 
   const time = new Date().toLocaleTimeString();
-  console.log("PM test ENDS at", time, "with the nodecount of", nodeCount);
+  console.log("PM test ENDS at", time, "with the wordcount of", wordcount);
 
   fs.writeFile(
-    path.join(folderPath, nodeCountFilename),
-    JSON.stringify(nodeCountMetrics),
+    path.join(folderPath, filename),
+    JSON.stringify(perfArray),
     "utf8",
     (err) => {
       if (err) {
         console.error(err);
         return;
       }
-      console.log(`PM RESULTS are in: ${nodeCountFilename}`);
+      console.log(`PM RESULTS are in: ${filename}`);
     },
   );
 
@@ -62,11 +63,10 @@ test.afterAll(async ({ browser }) => {
 
 test.only("PM stress test: infinite test with paragraphs", async () => {
   test.setTimeout(15000000);
-  await page.evaluate(() => window.performance.mark("perf:start"));
 
   for (let i = 0; i < REPEATS; i++) {
     await page.keyboard.type("typing ");
     await page.keyboard.press("Enter");
-    nodeCount = i + 1;
+    wordcount = i;
   }
 });

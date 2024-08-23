@@ -39,34 +39,34 @@ export const selectText = async (element: Element): Promise<void> => {
 };
 
 // I had to turn this to async as using a pasteObserver was not enough for some tests
-export async function simulatePaste(
-  text: string,
-  element: any,
-  delay?: number,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const event = new Event("paste", {
-      bubbles: true,
-      cancelable: true,
-    });
-
-    event.clipboardData = {
-      getData: function (type: any) {
-        if (type === "text/plain") {
-          return text;
-        }
-        return "";
-      },
-    };
-    element.dispatchEvent(event);
-    setTimeout(
-      () => {
-        resolve();
-      },
-      delay ? delay : 0,
-    );
-  });
-}
+// export async function simulatePaste(
+//   text: string,
+//   element: any,
+//   delay?: number,
+// ): Promise<void> {
+//   return new Promise((resolve) => {
+//     const event = new Event("paste", {
+//       bubbles: true,
+//       cancelable: true,
+//     });
+//
+//     event.clipboardData = {
+//       getData: function (type: any) {
+//         if (type === "text/plain") {
+//           return text;
+//         }
+//         return "";
+//       },
+//     };
+//     element.dispatchEvent(event);
+//     setTimeout(
+//       () => {
+//         resolve();
+//       },
+//       delay ? delay : 0,
+//     );
+//   });
+// }
 
 export function simulateCut(element: any) {
   const event = new Event("cut", {
@@ -128,11 +128,10 @@ export function delay(ms: number) {
 
 export const relevantMetrics = [
   // "ScriptDuration",
-  // "JSHeapUsedSize",
+  "JSHeapUsedSize",
   // "ProcessTime",
   // "LayoutCount",
-  // //
-  "ThreadTime",
+  // "ThreadTime",
   // "JSHeapTotalSize",
   // "TaskDuration",
   // "TaskOtherDuration",
