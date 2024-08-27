@@ -1,18 +1,19 @@
 const fs = require("fs");
 
-const inputFilePath = "./tests/L-trace.json";
-const outputFilePath = "./tests/L-extr.json";
-// const inputFilePath = "./tests/PM-trace.json";
-// const outputFilePath = "./tests/PM-extr.json";
+const inputFilePath = "./results/L-trace.json";
+const outputFilePath = "./results/L-processedTrace.json";
+// const inputFilePath = "./results/PM-trace.json";
+// const outputFilePath = "./results/PM-processedTrace.json";
 
-const interval = 1000 * 1000; // 1 second in microseconds
+// 1 * 1000 * 1000 => 1 second in microseconds
+const interval = 3 * 1000 * 1000;
 
 interface TraceEvent {
   cat: string;
   name: string;
   ts: number;
   dur?: number;
-  tts?: number;
+  tdur?: number;
   args?: {
     data?: {
       jsHeapSizeUsed?: number;
@@ -23,23 +24,26 @@ interface TraceEvent {
 
 interface ExtractedData {
   scriptDurations: Array<number>;
-  jsHeapSizes: Array<number>;
+  jsHeapUsedSizes: Array<number>;
   layoutCounts: Array<number>;
   threadTimes: Array<number>;
 }
 
-function processTrace(traceData: { traceEvents: TraceEvent[] }): ExtractedData {
+function processTraceForV2(traceData: {
+  traceEvents: TraceEvent[];
+}): ExtractedData {
   const extractedData: ExtractedData = {
     scriptDurations: [],
-    jsHeapSizes: [],
+    jsHeapUsedSizes: [],
     layoutCounts: [],
     threadTimes: [],
   };
 
+  // find the 0 sec
   const firstEvent = traceData.traceEvents.find(
     (event) => event.cat !== "__metadata",
   );
-  const initialTimestamp = firstEvent?.ts;
+  const initialTimestamp = firstEvent?.ts || 0;
 
   let cumulativeScriptDuration = 0;
   let cumulativeLayoutCount = 0;
@@ -49,7 +53,7 @@ function processTrace(traceData: { traceEvents: TraceEvent[] }): ExtractedData {
   let lastTimestamp = 0;
 
   traceData.traceEvents.forEach((event) => {
-    const relativeTimestamp = event.ts - (initialTimestamp || 0);
+    const relativeTimestamp = event.ts - initialTimestamp;
 
     if (relativeTimestamp >= lastTimestamp + interval) {
       lastTimestamp += interval;
@@ -57,34 +61,44 @@ function processTrace(traceData: { traceEvents: TraceEvent[] }): ExtractedData {
       // Store the cumulative data for the current interval
       extractedData.scriptDurations.push(cumulativeScriptDuration);
 
-      extractedData.jsHeapSizes.push(lastJsHeapSize);
+      extractedData.jsHeapUsedSizes.push(lastJsHeapSize);
 
       extractedData.layoutCounts.push(cumulativeLayoutCount);
 
       extractedData.threadTimes.push(cumulativeThreadTime);
     }
 
-    if (event.cat === "v8.execute" && event.dur) {
+    // ScriptDuration
+    const scriptDurationEventNames = [
+      "FunctionCall",
+      "EventDispatch",
+      "RunMicrotasks",
+      "MajorGC",
+      "MinorGC",
+    ];
+    if (event.dur && scriptDurationEventNames.includes(event.name)) {
       cumulativeScriptDuration += event.dur;
     }
+
+    // JSHeapUsedSize
     if (event.name === "UpdateCounters" && event.args?.data?.jsHeapSizeUsed) {
       lastJsHeapSize = event.args.data.jsHeapSizeUsed;
     }
 
-    const layoutEventNames = ["Layout", "UpdateLayerTree", "Paint"];
-    if (layoutEventNames.includes(event.name)) {
+    // const layoutEventNames = ["Layout", "UpdateLayerTree", "Paint"];
+    if (event.name === "Layout") {
       cumulativeLayoutCount += 1;
     }
 
-    if (event.tts) {
-      cumulativeThreadTime += event.tts;
+    if (event.name === "RunTask" && event.tdur) {
+      cumulativeThreadTime += event.tdur;
     }
   });
 
   // Push the final interval's data
   extractedData.scriptDurations.push(cumulativeScriptDuration);
 
-  extractedData.jsHeapSizes.push(lastJsHeapSize);
+  extractedData.jsHeapUsedSizes.push(lastJsHeapSize);
 
   extractedData.layoutCounts.push(cumulativeLayoutCount);
 
@@ -101,7 +115,7 @@ fs.readFile(inputFilePath, "utf8", (err: any, data: any) => {
   }
 
   const traceData = JSON.parse(data) as { traceEvents: TraceEvent[] };
-  const extractedData = processTrace(traceData);
+  const extractedData = processTraceForV2(traceData);
 
   // Save the extracted data to a new JSON file
   fs.writeFile(
@@ -112,7 +126,7 @@ fs.readFile(inputFilePath, "utf8", (err: any, data: any) => {
         console.error("Error writing extracted data file:", err);
         return;
       }
-      console.log("Extracted data saved to", outputFilePath);
+      console.log("** Extracted data saved to", outputFilePath, " **");
     },
   );
 });

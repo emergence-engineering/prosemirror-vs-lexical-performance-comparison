@@ -1,14 +1,11 @@
 import { test } from "@playwright/test";
 import {
-  averageOf,
   calcAverageMetrics,
   delay,
   findEditor,
   Metric,
   relevantMetrics,
-  selectText,
-  simulatePaste,
-} from "./utils";
+} from "../utils";
 import fs from "fs";
 import path from "path";
 

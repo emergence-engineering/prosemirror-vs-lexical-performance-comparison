@@ -1,23 +1,27 @@
-import { CDPSession, Page, test } from "@playwright/test";
-import { findEditor, relevantMetrics } from "./utils";
+import { chromium, Page, test, Browser } from "@playwright/test";
+import { findEditor } from "./utils";
 import fs from "fs";
 import path from "path";
-import { Protocol } from "playwright-core/types/protocol";
-import { MEASUREMENT_INTERVAL, REPEATS } from "./lexical-stress.spec";
 
+const MEASUREMENT_INTERVAL = 15000;
+const REPEATS = 90000;
+
+const folderPath = path.join(__dirname, "results");
 const nodeCountFilename = "PM-nodecount.json";
 const profileFilename = "PM-trace.json";
+
 let nodeCount: number;
-
 const nodeCountMetrics: number[] = [];
-let page: Page;
 let nodecountInterval: NodeJS.Timeout;
-let session: CDPSession;
+let page: Page;
+let browser: Browser;
 
-test.beforeAll(async ({ browser }) => {
+test.beforeAll(async () => {
+  browser = await chromium.launch({
+    args: ["--js-flags=--max-old-space-size=8192"],
+  });
   page = await browser.newPage();
-  session = await page.context().newCDPSession(page);
-  await session.send("Performance.enable");
+
   await findEditor(page, "", "#editor");
 
   nodecountInterval = setInterval(async () => {
@@ -28,21 +32,22 @@ test.beforeAll(async ({ browser }) => {
   console.log("PM test STARTS at", time);
 
   await browser.startTracing(page, {
-    path: profileFilename,
-    screenshots: true,
+    categories: [
+      // "v8.execute",
+      "devtools.timeline",
+      // "disabled-by-default-devtools.timeline",
+    ],
+    path: path.join(folderPath, profileFilename),
+    screenshots: false,
   });
 });
 
-test.afterAll(async ({ browser }) => {
-  await browser.stopTracing().then(() => console.log("PM-trace file is ready"));
-
-  await page.evaluate(() => window.performance.mark("perf:stop"));
-  clearInterval(nodecountInterval);
-
-  const folderPath = path.join(__dirname, "pm-results");
-
+test.afterAll(async () => {
   const time = new Date().toLocaleTimeString();
   console.log("PM test ENDS at", time, "with the nodecount of", nodeCount);
+
+  clearInterval(nodecountInterval);
+  await browser.stopTracing();
 
   fs.writeFile(
     path.join(folderPath, nodeCountFilename),
@@ -53,17 +58,14 @@ test.afterAll(async ({ browser }) => {
         console.error(err);
         return;
       }
-      console.log(`PM RESULTS are in: ${nodeCountFilename}`);
+      console.log(`PM nodecount results are in: ${nodeCountFilename}`);
     },
   );
 
   await page.close();
 });
 
-test.only("PM stress test: infinite test with paragraphs", async () => {
-  test.setTimeout(15000000);
-  await page.evaluate(() => window.performance.mark("perf:start"));
-
+test("PM stress test: infinite test with paragraphs", async () => {
   for (let i = 0; i < REPEATS; i++) {
     await page.keyboard.type("typing ");
     await page.keyboard.press("Enter");
