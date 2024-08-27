@@ -4,7 +4,7 @@ import {
   findEditor,
   Metric,
   relevantMetrics,
-} from "./utils";
+} from "../utils";
 import fs from "fs";
 import path from "path";
 
