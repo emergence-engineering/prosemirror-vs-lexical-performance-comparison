@@ -23,8 +23,8 @@ const prosemirrorParams = {
 const folderPath = path.join(__dirname, "results");
 
 ///////// SETTINGS /////////
-const activeEditor = lexicalParams;
-// const activeEditor = prosemirrorParams;
+// const activeEditor = lexicalParams;
+const activeEditor = prosemirrorParams;
 
 const metrics = [
   "ScriptDuration",
