@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 const Header = () => {
@@ -14,7 +13,7 @@ const Header = () => {
       </a>
       <div className={"navbar"}>
         <div className={"navbar__nav"}>
-          <Link href={"/"}>ProseMirror</Link>
+          <Link href={"/prosemirror"}>ProseMirror</Link>
         </div>
         <div className={"navbar__nav"}>
           <Link href={"/lexical"}>Lexical</Link>
