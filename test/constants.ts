@@ -1,15 +1,22 @@
 import path from "path";
 import { EditorParams, MetricsAtNodeCount, TimeAtNodeCount } from "./types";
 
-export const MEASUREMENT_INTERVAL = 15000; // how often the code saves the metrics you measure - default is 15 sec
+// how often the code saves the metrics you measure - default is 15 sec
+export const MEASUREMENT_INTERVAL = 15000;
 
-export const MAX_NODES = 20000; // how many nodes to insert into the editor - default is 20k to make sure the test doesn't finish before the set timeout
+// how many nodes to insert into the editor
+// - default is 20k to make sure the test doesn't finish before the set timeout
+export const MAX_NODES = 20000;
 
-export const NODECOUNT_CHECKPOINT = 200; // the node count at which you want to save the time-nodeCount pair - default is 200
+// the node count at which you want to save the time-nodeCount pair - default is 200
+export const NODECOUNT_CHECKPOINT = 200;
 
-export const TIMEOUT = 3600000; // how long the test would run - default is 1 hour
+// how long the test would run - default is 1 hour
+export const TIMEOUT = 3600000;
+// export const TIMEOUT = 600000; // 10mins for testing the test
 
-export const GLOBALTIMEOUT = 4200000; // how long the test would run WITH the before/after hooks included - default is 70 mins
+// how long the test could run WITH the before/after hooks included - default is 130 mins
+export const GLOBALTIMEOUT = 7800000;
 
 // Select the performance metrics you are interested in
 export const metrics = [
@@ -30,6 +37,7 @@ export const metrics = [
 ];
 
 export const folderPath = path.join(__dirname, "results");
+export const folderPathGraphs = path.join(__dirname, "results/graphs");
 
 export const perfMetricsL: MetricsAtNodeCount[] = [];
 export const perfMetricsPM: MetricsAtNodeCount[] = [];

@@ -11,9 +11,7 @@
     "lint": "next lint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:slow": "playwright test --project chromium --headed",
-    "processTrace": "ts-node-dev --project ./tsconfig.json test/_old-everything/processTrace-for-v2.ts",
-    "processResult": "ts-node-dev --project ./tsconfig.json test/results/processResult.ts"
+    "createGraphs": "ts-node-dev --project ./tsconfig.json test/createGraphs.ts"
   },
   "dependencies": {
     "@lexical/link": "^0.12.2",
@@ -24,6 +22,7 @@
     "@types/node": "20.8.10",
     "@types/react": "18.2.36",
     "@types/react-dom": "18.2.14",
+    "canvas": "^2.11.2",
     "chart.js": "^4.4.4",
     "eslint": "8.53.0",
     "eslint-config-next": "14.0.1",

@@ -3,6 +3,7 @@ import { Protocol } from "playwright-core/types/protocol";
 export type MetricsAtNodeCount = {
   metrics: Protocol.Performance.Metric[];
   nodeCount: number;
+  time: number;
 };
 
 export type Metric = {
@@ -27,15 +28,9 @@ export type EditorParams = {
   nodeCountMetrics: TimeAtNodeCount[];
 };
 
-export type GraphDataPoint = {
-  nodeCount: number;
-  valueL: number | null;
-  valuePM: number | null;
-};
-
 export type yDataset = {
   label: string;
-  data: Array<number | null>;
+  data: Array<{ nodeCount: number; value: number | null; time: number | null }>;
   backgroundColor: string;
   pointRadius: number;
   borderColor: string;

@@ -1,20 +1,13 @@
 import { Page, test, CDPSession } from "@playwright/test";
 import fs from "fs";
 import path from "path";
-import {
-  findEditor,
-  createGraph,
-  filterMetric,
-  processDataForGraph,
-} from "./utils";
+import { findEditor, filterMetric, createFilteredFile } from "./utils";
 import {
   folderPath,
   lexicalParams,
   prosemirrorParams,
   perfMetricsL,
   perfMetricsPM,
-  savedNodeCountsL,
-  savedNodeCountsPM,
   MEASUREMENT_INTERVAL,
   MAX_NODES,
   NODECOUNT_CHECKPOINT,
@@ -40,7 +33,11 @@ test.beforeEach(async ({ browser }) => {
     const filteredPerfMetrics = perfMetrics.metrics.filter((metric) =>
       metrics.includes(metric.name),
     );
-    activeEditor.perfMetrics.push({ metrics: filteredPerfMetrics, nodeCount });
+    activeEditor.perfMetrics.push({
+      metrics: filteredPerfMetrics,
+      nodeCount,
+      time: performance.now(),
+    });
   }, MEASUREMENT_INTERVAL);
 
   nodeCount = 0;
@@ -57,7 +54,6 @@ test.afterEach(async () => {
 
   clearInterval(metricInterval);
 
-  //* do you need a JSON file of nodeCount-time pairs?
   fs.writeFile(
     path.join(folderPath, activeEditor.nodeCountFileName),
     JSON.stringify(activeEditor.nodeCountMetrics),
@@ -72,9 +68,7 @@ test.afterEach(async () => {
       );
     },
   );
-  // */
 
-  //* do you need a JSON file of the enabled metrics with the current nodecount, measured at each MEASUREMENT_INTERVAL?
   fs.writeFile(
     path.join(folderPath, activeEditor.perfMetricsFileName),
     JSON.stringify(activeEditor.perfMetrics),
@@ -89,67 +83,17 @@ test.afterEach(async () => {
       );
     },
   );
-  // */
 
   //* do you need JSON files of each enabled metric with the current nodecount?
   const performanceMetrics =
     activeEditor.name === "Lexical" ? perfMetricsL : perfMetricsPM;
 
   metrics.forEach((m) => {
-    filterMetric({
+    createFilteredFile({
       filterFor: m,
       perfDataWithNodeCount: performanceMetrics,
       editor: activeEditor.name,
     });
-  });
-  // */
-
-  //* do you need nodeCount(x)-metric(y) graphs for each editor separately?
-  metrics.forEach((m) => {
-    const data = processDataForGraph({
-      filterFor: m,
-      perfMetricsLexical: activeEditor.name === "Lexical" ? perfMetricsL : null,
-      perfMetricsPM: activeEditor.name === "Lexical" ? null : perfMetricsPM,
-      timeAtNodeCountResult:
-        activeEditor.name === "Lexical" ? savedNodeCountsL : savedNodeCountsPM,
-    });
-
-    createGraph({
-      xDataset: data.map((d) => d.nodeCount),
-      lexicalDataset: data.map((d) => d.valueL),
-      pmDataset: data.map((d) => d.valuePM),
-      metric: m,
-      fileName: `${activeEditor.name}-${m}`,
-    });
-  });
-  // */
-});
-
-test.afterAll(async () => {
-  //* do you need nodecount(x)-metric(y) graphs comparing the two editors?
-  metrics.forEach((m) => {
-    const data = processDataForGraph({
-      filterFor: m,
-      perfMetricsLexical: perfMetricsL,
-      perfMetricsPM: perfMetricsPM,
-      timeAtNodeCountResult: savedNodeCountsL,
-    });
-
-    createGraph({
-      xDataset: data.map((d) => d.nodeCount),
-      lexicalDataset: data.map((d) => d.valueL),
-      pmDataset: data.map((d) => d.valuePM),
-      metric: m,
-    });
-  });
-  // */
-
-  //* do you need a nodecount(x)-time(y) graph comparing the two editors?
-  createGraph({
-    xDataset: savedNodeCountsL.map((d) => d.nodeCount),
-    lexicalDataset: savedNodeCountsL.map((d) => d.time),
-    pmDataset: savedNodeCountsPM.map((d) => d.time),
-    metric: "Time",
   });
   // */
 
@@ -172,18 +116,25 @@ async function runStressTest({
   const time = new Date().toLocaleTimeString();
   console.log(`\n***********\n${editorName} test STARTS at`, time);
 
+  activeEditor.nodeCountMetrics.push({
+    nodeCount: nodeCount,
+    time: performance.now(),
+  });
+
   // the test itself just types a word and hits enter in a loop
   for (let i = 0; i < MAX_NODES; i++) {
     await page.keyboard.type("typing ");
     await page.keyboard.press("Enter");
+
     nodeCount = i + 1;
 
-    if (nodeCount % NODECOUNT_CHECKPOINT === 0 || nodeCount === 1) {
+    if (nodeCount % NODECOUNT_CHECKPOINT === 0) {
       activeEditor.nodeCountMetrics.push({
         nodeCount: nodeCount,
         time: performance.now(),
       });
     }
+    // nodeCount = i + 1;
   }
 }
 

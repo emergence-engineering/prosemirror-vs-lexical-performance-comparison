@@ -1,17 +1,16 @@
 import { Page } from "@playwright/test";
+import { MetricNodeCountPair, Metric, yDataset } from "./types";
 import {
-  GraphDataPoint,
-  MetricNodeCountPair,
-  Metric,
-  TimeAtNodeCount,
-  yDataset,
-} from "./types";
-import { folderPath, lexicalColors, pmColors } from "./constants";
+  folderPath,
+  folderPathGraphs,
+  lexicalColors,
+  pmColors,
+} from "./constants";
 // @ts-ignore
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
-const Chart = require("chart.js/auto");
+const { Chart } = require("chart.js/auto");
 
 export const findEditor = async (
   page: Page,
@@ -33,8 +32,40 @@ export const findEditor = async (
   });
 };
 
-// Filters the performance data for each enabled metric and creates their own JSON file
+const convertToMB = (v: number, filterFor: string) => {
+  if (v && filterFor === "JSHeapUsedSize") {
+    return v / 1048576;
+  }
+  return v;
+};
+
+// Filters the performance data for each enabled metric
 export const filterMetric = ({
+  filterFor,
+  perfDataWithNodeCount,
+}: {
+  filterFor: string;
+  perfDataWithNodeCount: MetricNodeCountPair[];
+}) => {
+  return perfDataWithNodeCount.map(
+    (metricNodeCountPair: MetricNodeCountPair) => {
+      const filteredMetric = metricNodeCountPair.metrics.filter(
+        (metric: Metric) => {
+          if (metric.name === filterFor) return metric.value;
+        },
+      );
+      console.log(filterFor);
+      return {
+        value: convertToMB(filteredMetric[0].value, filterFor),
+        // value: filteredMetric[0].value, // please use this line as 'value' if you'd like to have bytes as unit
+        nodeCount: metricNodeCountPair.nodeCount,
+      };
+    },
+  );
+};
+
+// Creates a JSON file for the filtered metrics
+export const createFilteredFile = ({
   filterFor,
   perfDataWithNodeCount,
   editor,
@@ -43,19 +74,10 @@ export const filterMetric = ({
   perfDataWithNodeCount: MetricNodeCountPair[];
   editor: string;
 }) => {
-  const filteredMetrics = perfDataWithNodeCount.map(
-    (metricNodeCountPair: MetricNodeCountPair) => {
-      const filteredMetric = metricNodeCountPair.metrics.filter(
-        (metric: Metric) => {
-          if (metric.name === filterFor) return metric.value;
-        },
-      );
-      return {
-        value: filteredMetric[0].value,
-        nodeCount: metricNodeCountPair.nodeCount,
-      };
-    },
-  );
+  const filteredMetrics = filterMetric({
+    filterFor,
+    perfDataWithNodeCount,
+  });
 
   const fileName = `${editor}-${filterFor}.json`;
 
@@ -73,81 +95,9 @@ export const filterMetric = ({
   );
 };
 
-// If there's a measurement with the same nodeCount as in the nodeCount-time array,
-// this function removes the item with the two 'null' values
-const removeDuplicatesWithNullValues = (graphDataPoints: GraphDataPoint[]) => {
-  const seenNodeCounts = new Set();
-
-  return graphDataPoints.filter((item) => {
-    const isDuplicate = seenNodeCounts.has(item.nodeCount);
-    seenNodeCounts.add(item.nodeCount);
-
-    // keep the item if it's not a duplicate or if either valueL or valuePM is not null
-    return !(isDuplicate && item.valueL === null && item.valuePM === null);
-  });
-};
-
-// Helper function for processing the performance data for the graph
-// and converts the JSHeapUsedSize unit from bytes to MB
-const processDataHelper = (
-  perfData: MetricNodeCountPair[],
-  valueKey: "valueL" | "valuePM",
-  filterFor: string,
-  graphDataPoints: GraphDataPoint[],
-) => {
-  const convertToMB = (v: number | undefined) => {
-    if (v && filterFor === "JSHeapUsedSize") {
-      return v / 1048576;
-    }
-    return v;
-  };
-
-  perfData.forEach((metricNodeCountPair: MetricNodeCountPair) => {
-    const metric = metricNodeCountPair.metrics.find(
-      (m: Metric) => m.name === filterFor,
-    );
-
-    graphDataPoints.push({
-      nodeCount: metricNodeCountPair.nodeCount,
-      valueL: valueKey === "valueL" ? convertToMB(metric?.value) || null : null,
-      valuePM:
-        valueKey === "valuePM" ? convertToMB(metric?.value) || null : null,
-    });
-  });
-};
-
-// Processes the test results for the graph, whether you want to compare editors or just see one metric for one editor
-export const processDataForGraph = ({
-  filterFor,
-  perfMetricsLexical,
-  perfMetricsPM,
-  timeAtNodeCountResult,
-}: {
-  filterFor: string;
-  perfMetricsLexical: MetricNodeCountPair[] | null;
-  perfMetricsPM: MetricNodeCountPair[] | null;
-  timeAtNodeCountResult: TimeAtNodeCount[] | null;
-}) => {
-  const graphDataPoints: GraphDataPoint[] = [];
-
-  if (perfMetricsLexical)
-    processDataHelper(perfMetricsLexical, "valueL", filterFor, graphDataPoints);
-  if (perfMetricsPM)
-    processDataHelper(perfMetricsPM, "valuePM", filterFor, graphDataPoints);
-
-  if (timeAtNodeCountResult)
-    timeAtNodeCountResult.forEach(({ nodeCount }) => {
-      graphDataPoints.push({ nodeCount, valueL: null, valuePM: null });
-    });
-
-  return removeDuplicatesWithNullValues(
-    graphDataPoints.sort((a, b) => a.nodeCount - b.nodeCount),
-  );
-};
-
 const createDataset = (
   label: string,
-  data: Array<number | null>,
+  data: Array<{ nodeCount: number; value: number | null; time: number | null }>,
   colors: { backgroundColor: string; borderColor: string },
 ): yDataset => ({
   label,
@@ -159,55 +109,95 @@ const createDataset = (
   spanGaps: true,
 });
 
+const colorPlugin = {
+  id: "customCanvasBackgroundColor",
+  beforeDraw: (chart: typeof Chart) => {
+    const { ctx } = chart;
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, chart.width, chart.height);
+    ctx.restore();
+  },
+};
+
 export const createGraph = ({
-  xDataset,
   lexicalDataset,
   pmDataset,
   metric,
   fileName,
 }: {
-  xDataset: number[];
-  lexicalDataset: Array<number | null>;
-  pmDataset: Array<number | null>;
+  lexicalDataset: Array<{
+    nodeCount: number;
+    value: number | null;
+    time: number | null;
+  }> | null;
+  pmDataset: Array<{
+    nodeCount: number;
+    value: number | null;
+    time: number | null;
+  }> | null;
   metric: string;
   fileName?: string;
 }) => {
   const dom = new JSDOM(
-    '<!DOCTYPE html><html lang="eng"><body><canvas id="graph" width="800" height="400"></canvas></body></html>',
+    '<!DOCTYPE html><html lang="eng"><body><canvas id="myChart" width="800" height="400"> </canvas></body></html>',
   );
   global.window = dom.window;
   global.document = dom.window.document;
 
-  // Get the canvas element from the virtual DOM
-  const canvas = dom.window.document.getElementById("graph");
+  const canvas = document.getElementById("myChart") as HTMLCanvasElement;
   const ctx = canvas.getContext("2d");
 
   let datasets: yDataset[] = [];
 
-  if (lexicalDataset.some((v) => v !== null)) {
+  if (lexicalDataset) {
     datasets.push(createDataset("Lexical", lexicalDataset, lexicalColors));
   }
 
-  if (pmDataset.some((v) => v !== null)) {
+  if (pmDataset) {
     datasets.push(createDataset("ProseMirror", pmDataset, pmColors));
+  }
+
+  const isMetric = metric !== "nodeCount";
+  let xAxisText: string;
+  let graphTitle: string;
+  let parsing: { yAxisKey: string; xAxisKey: string };
+
+  if (isMetric) {
+    xAxisText = "nodeCount";
+    graphTitle = metric;
+    parsing = { xAxisKey: "nodeCount", yAxisKey: "value" };
+  } else {
+    xAxisText = "time, s";
+    graphTitle = "Time";
+    parsing = { xAxisKey: "time", yAxisKey: "nodeCount" };
   }
 
   // Create the graph
   new Chart(ctx, {
     type: "line",
     data: {
-      labels: xDataset,
       datasets: datasets,
     },
+    plugins: [colorPlugin],
     options: {
+      parsing: parsing,
+      plugins: {
+        title: {
+          display: true,
+          text: graphTitle,
+        },
+      },
       responsive: false,
       scales: {
         x: {
+          type: "linear",
           beginAtZero: true,
           display: true,
           title: {
             display: true,
-            text: "nodeCount",
+            text: xAxisText,
           },
         },
         y: {
@@ -221,10 +211,11 @@ export const createGraph = ({
       },
     },
   });
+
   const givenFileName = fileName ? fileName : metric;
   const base64Data = canvas.toDataURL().replace(/^data:image\/png;base64,/, "");
   fs.writeFileSync(
-    path.join(folderPath, `${givenFileName}.png`),
+    path.join(folderPathGraphs, `${givenFileName}.png`),
     base64Data,
     "base64",
   );
