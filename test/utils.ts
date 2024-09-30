@@ -170,7 +170,7 @@ export const createGraph = ({
     parsing = { xAxisKey: "nodeCount", yAxisKey: "value" };
   } else {
     xAxisText = "time, s";
-    graphTitle = "Time";
+    graphTitle = "Nodecount";
     parsing = { xAxisKey: "time", yAxisKey: "nodeCount" };
   }
 
@@ -212,7 +212,7 @@ export const createGraph = ({
     },
   });
 
-  const givenFileName = fileName ? fileName : metric;
+  const givenFileName = fileName ? fileName : `${metric}-nodeCount`;
   const base64Data = canvas.toDataURL().replace(/^data:image\/png;base64,/, "");
   fs.writeFileSync(
     path.join(folderPathGraphs, `${givenFileName}.png`),
@@ -220,5 +220,5 @@ export const createGraph = ({
     "base64",
   );
 
-  console.log(`* Graph: ${givenFileName}-nodeCount created`);
+  console.log(`* Graph: ${givenFileName} created`);
 };

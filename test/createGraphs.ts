@@ -30,7 +30,7 @@ const createTimeNodecountGraphs = () => {
     lexicalDataset,
     pmDataset,
     metric: "nodeCount",
-    fileName: "Time",
+    fileName: "Nodecount",
   });
 
   // Lexical
@@ -38,7 +38,7 @@ const createTimeNodecountGraphs = () => {
     lexicalDataset,
     pmDataset: null,
     metric: "nodeCount",
-    fileName: "Lexical-Time",
+    fileName: "Lexical-Nodecount",
   });
 
   // ProseMirror
@@ -46,7 +46,7 @@ const createTimeNodecountGraphs = () => {
     lexicalDataset: null,
     pmDataset,
     metric: "nodeCount",
-    fileName: "ProseMirror-Time",
+    fileName: "ProseMirror-Nodecount",
   });
 };
 createTimeNodecountGraphs();

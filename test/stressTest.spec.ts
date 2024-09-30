@@ -1,13 +1,15 @@
 import { Page, test, CDPSession } from "@playwright/test";
 import fs from "fs";
 import path from "path";
-import { findEditor, filterMetric, createFilteredFile } from "./utils";
+import { findEditor, createFilteredFile } from "./utils";
 import {
   folderPath,
   lexicalParams,
   prosemirrorParams,
   perfMetricsL,
   perfMetricsPM,
+  savedNodeCountsL,
+  savedNodeCountsPM,
   MEASUREMENT_INTERVAL,
   MAX_NODES,
   NODECOUNT_CHECKPOINT,
@@ -134,7 +136,6 @@ async function runStressTest({
         time: performance.now(),
       });
     }
-    // nodeCount = i + 1;
   }
 }
 
